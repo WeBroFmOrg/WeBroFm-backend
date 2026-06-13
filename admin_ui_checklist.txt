@@ -1,0 +1,241 @@
+WEBRO FM ADMIN UI - CHECKUP PROMPT
+====================================
+
+Is prompt ko use karke check karo ki jo UI bana hai woh sahi hai ya nahi.
+Har page ke liye features diye hain — agar sab match karta hai to UI sahi hai.
+
+────────────────────────────────────────────
+TECH STACK
+────────────────────────────────────────────
+React + TypeScript + Vite + Tailwind CSS
+shadcn/ui ya NextUI (component library)
+react-router-dom v6 (routing)
+axios (API calls)
+@tanstack/react-query (server state)
+recharts ya chart.js (charts)
+react-hook-form + zod (forms)
+lucide-react (icons)
+sonner ya react-hot-toast (notifications)
+
+Frontend Build Output → Django ke staticfiles folder mein ya alag serve karo
+
+────────────────────────────────────────────
+COLOR THEME
+────────────────────────────────────────────
+Dark theme ONLY (no light mode toggle)
+Background: #0f172a (slate-900) / #020617 (slate-950)
+Cards: glass effect (backdrop-blur, rgba backgrounds)
+Primary: Electric Blue #00D2FF
+Secondary: Accent Purple #7000FF
+Success: Green #53E076
+Text: white/off-white, slate-400 for muted
+Active sidebar: gradient (blue -> purple)
+All gradients use blue->purple combo
+
+────────────────────────────────────────────
+LAYOUT
+────────────────────────────────────────────
+Left sidebar (collapsible on mobile via hamburger):
+  - Logo + "Webro FM Admin" at top
+  - Sidebar items with icons:
+    * Dashboard
+    * Users
+    * Content (expandable): Shows, Episodes, Categories, Authors
+    * Engagement (expandable): Comments, Likes, Favorites
+    * Feedback & Reports (expandable): Feedback, Reports
+    * Collaboration (expandable): Stories, Sponsorships
+    * Storage → R2 Explorer
+  - Active page: gradient highlight (blue->purple)
+  - Bottom: Admin name + Logout button
+
+Top header bar:
+  - Hamburger menu (mobile only)
+  - Current page title
+  - Admin avatar/name dropdown (with logout)
+
+Breadcrumbs optional but nice
+
+────────────────────────────────────────────
+PAGES - CHECKLIST
+────────────────────────────────────────────
+
+--- 1. LOGIN PAGE ---
+  Route: /admin/login
+  API: POST /api/admin/login/
+  Body: { phone_number, password }
+  Response: { access, refresh, user: { id, full_name, phone_number, is_superuser } }
+
+  Check:
+  [ ] Dark full-screen background with gradient glow
+  [ ] Centered login card (max-w-md), glass effect
+  [ ] Brand logo/icon at top
+  [ ] Phone number input
+  [ ] Password input with show/hide toggle
+  [ ] "Sign In" button with loading state
+  [ ] Error toast on invalid credentials
+  [ ] On success: tokens store in localStorage, redirect to /admin/dashboard
+  [ ] Auto-redirect to dashboard if already logged in
+  [ ] Axios interceptor: attach Bearer token to all requests
+  [ ] Axios interceptor: on 401 → try refresh token → if fail → redirect to login
+
+--- 2. DASHBOARD ---
+  Route: /admin/dashboard
+  API: GET /api/admin/dashboard/stats/
+
+  Check:
+  [ ] Stats cards grid (2x2 mobile, 4x4 desktop): Users, Shows, Episodes, Hits, Pending Stories, Pending Ads
+  [ ] Each card: glass effect, count number, icon, subtitle
+  [ ] Weekly badges on relevant cards (weekly_hits, weekly_new_users)
+  [ ] Line chart: Listener Activity (last 7 days)
+  [ ] Doughnut/pie chart: Shows by Category
+  [ ] Loading skeleton on mount
+  [ ] Error state with retry button
+
+--- 3. USERS ---
+  Route: /admin/users
+  APIs: GET list, GET detail, PATCH update, DELETE delete, POST action
+
+  Check:
+  [ ] Table: ID, Phone, Name, Email, Status badge (Active/Inactive), Staff badge, Joined Date, Actions
+  [ ] Search bar (searches phone, name, email) with debounce
+  [ ] Pagination
+  [ ] Click row → detail/edit slide-over panel
+  [ ] Edit panel: Name (editable), Phone (read-only), Email, DOB, Profile Pic (upload), Interests (multi-select), Is Active toggle, Is Staff toggle
+  [ ] Action buttons per row: Block/Activate, Make Staff/Remove Staff, Delete (with confirm)
+  [ ] Loading skeleton, empty state, error state
+
+--- 4. CATEGORIES ---
+  Route: /admin/categories
+  APIs: Full CRUD
+
+  Check:
+  [ ] Table: Name, Slug, Icon (image thumb), Status, Actions
+  [ ] Create button → modal with Name, Slug (auto-gen), Icon upload, Is Active toggle
+  [ ] Edit modal (pre-filled)
+  [ ] Delete with confirmation
+  [ ] Search filter
+
+--- 5. AUTHORS ---
+  Route: /admin/authors
+  APIs: Full CRUD
+
+  Check:
+  [ ] Table: Image (avatar), Name, Bio (truncated), Actions
+  [ ] Create/Edit modal: Name, Bio (textarea), Image upload with preview
+  [ ] Delete with confirmation
+  [ ] Search by name
+
+--- 6. SHOWS ---
+  Route: /admin/shows
+  APIs: Full CRUD + search + category filter
+
+  Check:
+  [ ] Table: Thumbnail, Title, Category, Author, Age Rating badge, Featured/Trending badges, Created Date, Actions
+  [ ] Filter: Category dropdown, Search input
+  [ ] Create/Edit modal: Title, Description (textarea), Category dropdown, Author dropdown, Thumbnail upload (R2), Age Rating select (U/UA/13+/18+), Is Featured toggle, Is Trending toggle
+  [ ] Delete with confirmation
+
+--- 7. EPISODES ---
+  Route: /admin/episodes
+  APIs: Full CRUD + show filter + analytics
+
+  Check:
+  [ ] Table: Sequence#, Title, Show, Duration (mm:ss), Audio Status, HLS Status, Created Date, Actions
+  [ ] Filter by Show dropdown
+  [ ] Create/Edit modal: Show dropdown, Title, Description, Audio File upload (→ R2 upload API), Duration (auto or manual), Sequence Number (auto-increment)
+  [ ] Detail view: Analytics section (Total Plays, Avg Listen Time, Completion Rate, Likes, Shares)
+  [ ] Delete with confirmation
+
+--- 8. COMMENTS ---
+  Route: /admin/comments
+  APIs: List, Delete, Toggle is_active
+
+  Check:
+  [ ] Table: ID, Username, Text (truncated + expand), Episode, Date, Status badge (Active/Hidden), Actions
+  [ ] Filter by episode_id
+  [ ] Actions: Hide/Show toggle, Delete
+
+--- 9. REPORTS ---
+  Route: /admin/reports
+  APIs: List (filter by resolved), Resolve
+
+  Check:
+  [ ] Table: ID, Reported By, Ad (brand), Reason, Status badge, Date, Actions
+  [ ] Filter tabs: All / Pending / Resolved
+  [ ] Resolve button
+
+--- 10. FEEDBACK ---
+  Route: /admin/feedback
+  APIs: List
+
+  Check:
+  [ ] Table: User, Episode, Rating (stars), Comment, Date
+  [ ] Sort by rating/date
+  [ ] Rating shown as colored stars
+  [ ] Stats at top: Average Rating, Total Feedback
+
+--- 11. STORIES ---
+  Route: /admin/stories
+  APIs: Full CRUD + status filter + actions (approve/reject/reviewing)
+
+  Check:
+  [ ] Table: Title, Username, Status badge (Pending=yellow, Reviewing=blue, Approved=green, Rejected=red), Date, Actions
+  [ ] Status filter tabs: All | Pending | Reviewing | Approved | Rejected
+  [ ] Click row → full detail view
+  [ ] Action buttons: Approve, Mark Reviewing, Reject (with reason modal)
+  [ ] Delete option
+
+--- 12. SPONSORSHIPS ---
+  Route: /admin/sponsorships
+  APIs: Full CRUD + status filter + actions (approve/reject/expire)
+
+  Check:
+  [ ] Table: Brand Name, Description, Ad Visual (image thumb), Status badge, Date, Actions
+  [ ] Status filter tabs: All | Pending | Approved | Rejected | Expired
+  [ ] Detail view: full description, ad visual image (lightbox), target URL (clickable)
+  [ ] Actions: Approve, Reject (with reason), Mark Expired
+
+--- 13. R2 STORAGE EXPLORER ---
+  Route: /admin/storage
+  APIs: List/explore, Upload (multipart + compression), Delete
+
+  Check:
+  [ ] File explorer like Google Drive / S3 browser
+  [ ] Breadcrumb navigation (root / folder1 / subfolder)
+  [ ] File list: Name (with type icon), Size (formatted), Last Modified, Actions
+  [ ] Upload button → modal: File picker, Compress toggle (for images), Upload progress bar
+  [ ] File actions: Copy Signed URL, Download, Delete
+  [ ] File type icons: mp3=music, m3u8=video, jpg/png=image
+
+--- 14. LIKES / FAVORITES ---
+  Route: /admin/likes, /admin/favorites
+  APIs: List
+
+  Check:
+  [ ] Simple read-only tables
+  [ ] Likes: User, Episode/Story, Date
+  [ ] Favorites: User, Show, Date
+
+────────────────────────────────────────────
+COMMON UI REQUIREMENTS (HAR PAGE PE)
+────────────────────────────────────────────
+[ ] Loading skeleton (table rows ya card shimmer)
+[ ] Empty state with illustration + message
+[ ] Error state with "Retry" button
+[ ] Toast notifications for all create/update/delete/action operations
+[ ] Confirmation dialog for destructive actions (delete, block, reject)
+[ ] Responsive: mobile + tablet + desktop
+[ ] Pagination on all list pages (20 per page)
+[ ] Search inputs with debounce (300ms)
+[ ] File uploads: show progress indicator
+[ ] Forms: validate with zod before submit
+
+────────────────────────────────────────────
+AUTH SETUP CHECK
+────────────────────────────────────────────
+[ ] Base URL: https://api.webrofm.com/api (updateable via .env)
+[ ] All admin endpoints at /api/admin/*
+[ ] JWT Bearer token in Authorization header
+[ ] On 401 → try refresh token → if fail → redirect to /admin/login
+[ ] Protected routes: redirect to login if not authenticated
+[ ] localStorage: access_token, refresh_token

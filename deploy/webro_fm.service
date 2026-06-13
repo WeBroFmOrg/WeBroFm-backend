@@ -1,0 +1,23 @@
+[Unit]
+Description=gunicorn daemon for WeBroFm Backend
+After=network.target
+
+[Service]
+User=root
+Group=www-data
+WorkingDirectory=/root/WeBroFm/Backend
+EnvironmentFile=/root/WeBroFm/Backend/.env
+ExecStart=/root/WeBroFm/Backend/venv/bin/gunicorn \
+          --access-logfile - \
+          --error-logfile - \
+          --workers 3 \
+          --worker-class sync \
+          --timeout 120 \
+          --bind unix:/run/webro_fm.sock \
+          webro_fm_backend.wsgi:application
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

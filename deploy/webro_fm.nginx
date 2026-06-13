@@ -1,0 +1,39 @@
+server {
+    listen 80;
+    server_name yourdomain.com api.yourdomain.com;
+
+    client_max_body_size 100M;
+    gzip on;
+    gzip_types application/json text/plain text/css text/xml application/javascript;
+
+    location = /favicon.ico { access_log off; log_not_found off; }
+
+    location /static/ {
+        alias /root/WeBroFm/Backend/staticfiles/;
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+
+    location / {
+        include proxy_params;
+        proxy_pass http://unix:/run/webro_fm.sock;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Host $host;
+        proxy_redirect off;
+    }
+
+    # Uncomment below for HTTPS (run certbot first)
+    # listen 443 ssl;
+    # ssl_certificate /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
+    # ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+    # ssl_protocols TLSv1.2 TLSv1.3;
+    # ssl_ciphers HIGH:!aNULL:!MD5;
+}
+
+# Uncomment for HTTP->HTTPS redirect
+# server {
+#     listen 80;
+#     server_name yourdomain.com api.yourdomain.com;
+#     return 301 https://$host$request_uri;
+# }

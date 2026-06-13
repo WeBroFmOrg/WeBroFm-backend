@@ -1,0 +1,11 @@
+.env
+db.sqlite3
+*.pyc
+__pycache__/
+*.egg-info/
+dist/
+build/
+OLD_PHP_BACKEND/
+cloudflare_r2_credentials.txt
+test_login.py
+dashboard/
