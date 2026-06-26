@@ -1,0 +1,128 @@
+Add teaser image cards to the Flutter app home screen for WeBro FM. Use riverpod, just_audio for audio, dio for HTTP.
+
+====================================================
+WHAT TEASERS ARE
+====================================================
+Teasers are standalone promotional image cards with a title. They are NOT linked to any show at creation.
+Teaser cards appear on the home screen as a horizontal scrollable row of images.
+Tapping a teaser takes the user to a "Coming Soon" / "Teaser Detail" screen that shows the image full-width.
+Teasers that have been "converted to show" are NOT shown (filtered out by backend).
+
+====================================================
+DATA SOURCE
+====================================================
+
+Teasers come from the preload endpoint at the top level:
+
+GET /api/home/preload/
+  Auth: Not required (AllowAny)
+  Response:
+  {
+    "shows": [ ... ],
+    "categories": [ ... ],
+    "teasers": [
+      {
+        "id": 1,
+        "title": "Coming Soon: Echoes of Darkness",
+        "image": "teasers/images/abc.jpg",
+        "image_url": "https://r2.cloudflarestorage.com/...signed...",
+        "sequence": 0,
+        "is_active": true,
+        "is_converted": false,
+        "created_at": "2026-06-27T..."
+      }
+    ]
+  }
+
+  Note: image_url is a signed Cloudflare R2 URL (valid ~1 hour). Use it directly with Image.network() or CachedNetworkImage.
+
+====================================================
+MODEL
+====================================================
+
+```dart
+class Teaser {
+  final int id;
+  final String title;
+  final String? imageUrl;
+  final int sequence;
+
+  Teaser({required this.id, required this.title, this.imageUrl, required this.sequence});
+
+  factory Teaser.fromJson(Map<String, dynamic> json) {
+    return Teaser(
+      id: json['id'],
+      title: json['title'],
+      imageUrl: json['image_url'],
+      sequence: json['sequence'] ?? 0,
+    );
+  }
+}
+```
+
+====================================================
+UI REQUIREMENTS
+====================================================
+
+1. Home Screen — "Coming Soon" / "Teasers" horizontal section:
+   - Section header: "Coming Soon" with gradient text (from #00D2FF to #7000FF)
+   - Horizontal ListView, height: ~200px
+   - Each teaser card: 160px wide, rounded-2xl overflow hidden
+
+2. Teaser Card Design:
+   - Background: teaser image (full card, object-fit: cover) with dark gradient overlay (black at 60% opacity bottom-to-top)
+   - If no image: gradient placeholder (from-[#00D2FF] to-[#7000FF]) with Film/Image icon centered
+   - Title text at bottom: white, bold, font-size 13px, padding 12px, with text shadow
+   - "Coming Soon" chip at top-right: small badge, amber/500 background, "COMING SOON" text, 8px font, bold, uppercase
+
+3. Tap action:
+   - Tap teaser card → navigate to Teaser Detail Screen
+   - Teaser Detail Screen: full-screen image view with the teaser image, title at bottom overlay
+   - "Notify Me" button (optional) — can be a placeholder for future notification feature
+
+4. Data flow:
+   - Extract teasers from preload response `teasers` array
+   - Sort by `sequence` ascending
+   - Only show teasers where `is_converted` is false (backendl already filters, but add client filter too)
+   - Cache preload response, show cached teasers first, refresh in background
+
+5. Error / Placeholder:
+   - If no teasers → hide the entire "Coming Soon" section
+   - If image fails to load → show gradient placeholder with icon
+   - Shimmer loading while teasers are loading
+
+6. State management (riverpod):
+```dart
+@riverpod
+class TeaserList extends _$TeaserList {
+  @override
+  Future<List<Teaser>> build() async {
+    final preload = await ref.watch(preloadProvider.future);
+    final teasers = (preload['teasers'] as List)
+        .map((json) => Teaser.fromJson(json as Map<String, dynamic>))
+        .where((t) => !t.isConverted)
+        .toList()
+      ..sort((a, b) => a.sequence.compareTo(b.sequence));
+    return teasers;
+  }
+}
+```
+
+Add `isConverted` to the dart model:
+```dart
+final bool isConverted;
+// fromJson: isConverted = json['is_converted'] ?? false,
+```
+
+====================================================
+PACKAGES NEEDED
+====================================================
+- cached_network_image (image loading with cache + placeholder)
+- shimmer (loading skeleton effect)
+
+====================================================
+PLACEHOLDER HINTS
+====================================================
+- No teaser image → gradient box from [#00D2FF] to [#7000FF] with a Film icon (white, size 32)
+- Loading → shimmer card of same dimensions
+- Image error → same gradient fallback as no image

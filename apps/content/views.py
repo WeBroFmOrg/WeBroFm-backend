@@ -7,6 +7,7 @@ from rest_framework import status, permissions, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .models import Category, Author, Show, Episode
 from .models import Category, Author, Show, Episode, Teaser
 from .serializers import (
     CategorySerializer, ShowSerializer, EpisodeSerializer,
@@ -28,9 +29,7 @@ class PreloadView(APIView):
         except Exception:
             pass
 
-        shows = Show.objects.all().select_related('category').prefetch_related(
-            'teasers'
-        )
+        shows = Show.objects.all().select_related('category')
 
         show_ids = [s.id for s in shows]
         episodes = Episode.objects.filter(show_id__in=show_ids).order_by('show', 'sequence_number')
@@ -47,9 +46,11 @@ class PreloadView(APIView):
             show_data['episodes'] = PreloadEpisodeSerializer(episode_map.get(show.id, []), many=True).data
             serialized_shows.append(show_data)
 
+        teasers = Teaser.objects.filter(is_active=True, is_converted=False)
         data = {
             "shows": serialized_shows,
-            "categories": CategorySerializer(categories, many=True).data
+            "categories": CategorySerializer(categories, many=True).data,
+            "teasers": TeaserSerializer(teasers, many=True).data
         }
 
         try:

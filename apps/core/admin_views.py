@@ -21,10 +21,11 @@ from PIL import Image
 
 from accounts.models import CustomUser
 from accounts.serializers import UserSerializer
-from content.models import Show, Episode, Category, Author, EpisodeAnalytics
+from content.models import Show, Episode, Category, Author, EpisodeAnalytics, Teaser
 from content.serializers import (
     ShowSerializer, EpisodeSerializer, EpisodeDetailSerializer,
-    CategorySerializer, AuthorSerializer, EpisodeAnalyticsSerializer
+    CategorySerializer, AuthorSerializer, EpisodeAnalyticsSerializer,
+    TeaserSerializer
 )
 from interactions.models import EpisodeHit, Comment, Report, Feedback, Like, Favorite, ContinuePlaying
 from interactions.serializers import (
@@ -255,6 +256,21 @@ class AdminEpisodeDetailView(generics.RetrieveUpdateDestroyAPIView):
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
 
+class AdminEpisodePlayView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request, pk):
+        from django.http import HttpResponseRedirect
+        from services.storage import storage_service
+        episode = get_object_or_404(Episode, pk=pk)
+        if not episode.audio_file_key:
+            return Response({"error": "No audio file"}, status=404)
+        url = storage_service.generate_signed_url(episode.audio_file_key)
+        if not url:
+            return Response({"error": "Failed to generate URL"}, status=500)
+        return HttpResponseRedirect(url)
+
+
 # ──────────────────────────────────────────────
 # EPISODE ANALYTICS
 # ──────────────────────────────────────────────
@@ -438,6 +454,77 @@ class AdminSponsorshipActionView(APIView):
 
         sponsorship.save()
         return Response({"status": sponsorship.status, "message": f"Ad {action}d"})
+
+
+# ──────────────────────────────────────────────
+# TEASERS - Full CRUD
+# ──────────────────────────────────────────────
+
+class AdminTeaserListCreateView(generics.ListCreateAPIView):
+    permission_classes = [permissions.IsAdminUser]
+    queryset = Teaser.objects.all().order_by('sequence')
+    serializer_class = TeaserSerializer
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+
+
+class AdminTeaserDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [permissions.IsAdminUser]
+    queryset = Teaser.objects.all()
+    serializer_class = TeaserSerializer
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+
+
+class AdminTeaserConvertToShowView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+
+    def post(self, request, pk):
+        teaser = get_object_or_404(Teaser, pk=pk)
+        if teaser.is_converted:
+            return Response({"error": "Teaser already converted to a show"}, status=400)
+
+        category_id = request.data.get('category')
+        author_id = request.data.get('author')
+        description = request.data.get('description', '')
+
+        if not category_id or not author_id:
+            return Response({"error": "category and author are required"}, status=400)
+
+        from content.models import Show
+        from django.core.files.storage import default_storage
+        import uuid, os
+
+        # Copy teaser image to show thumbnail path if it exists
+        thumbnail = None
+        if teaser.image:
+            try:
+                ext = os.path.splitext(teaser.image.name)[1].lower()
+                new_key = f"shows/thumbnails/{uuid.uuid4().hex}{ext}"
+                img_file = default_storage.open(teaser.image.name)
+                default_storage.save(new_key, img_file)
+                thumbnail = new_key
+            except Exception:
+                pass
+
+        show = Show.objects.create(
+            title=teaser.title,
+            description=description,
+            category_id=category_id,
+            author_id=author_id,
+            thumbnail=thumbnail,
+            age_rating='U'
+        )
+
+        teaser.is_converted = True
+        teaser.converted_show = show
+        teaser.save()
+
+        from content.serializers import ShowSerializer
+        return Response({
+            "message": "Show created from teaser",
+            "show": ShowSerializer(show).data,
+            "teaser": TeaserSerializer(teaser).data
+        }, status=201)
 
 
 # ──────────────────────────────────────────────

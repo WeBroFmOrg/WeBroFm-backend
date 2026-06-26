@@ -6,8 +6,9 @@ from .admin_views import (
     AdminCategoryListCreateView, AdminCategoryDetailView,
     AdminAuthorListCreateView, AdminAuthorDetailView,
     AdminShowListCreateView, AdminShowDetailView,
-    AdminEpisodeListCreateView, AdminEpisodeDetailView,
+    AdminEpisodeListCreateView, AdminEpisodeDetailView, AdminEpisodePlayView,
     AdminEpisodeAnalyticsView,
+    AdminTeaserListCreateView, AdminTeaserDetailView, AdminTeaserConvertToShowView,
     AdminCommentListView, AdminCommentManageView,
     AdminReportListView, AdminReportResolveView,
     AdminFeedbackListView,
@@ -45,8 +46,14 @@ urlpatterns = [
     path('admin/episodes/', AdminEpisodeListCreateView.as_view(), name='admin-episode-list'),
     path('admin/episodes/<int:pk>/', AdminEpisodeDetailView.as_view(), name='admin-episode-detail'),
 
-    # Episode Analytics
+    # Episode Play / Analytics
+    path('admin/episodes/<int:pk>/play/', AdminEpisodePlayView.as_view(), name='admin-episode-play'),
     path('admin/episodes/<int:episode_id>/analytics/', AdminEpisodeAnalyticsView.as_view(), name='admin-episode-analytics'),
+
+    # Teasers
+    path('admin/teasers/', AdminTeaserListCreateView.as_view(), name='admin-teaser-list'),
+    path('admin/teasers/<int:pk>/', AdminTeaserDetailView.as_view(), name='admin-teaser-detail'),
+    path('admin/teasers/<int:pk>/convert-to-show/', AdminTeaserConvertToShowView.as_view(), name='admin-teaser-convert'),
 
     # Comments
     path('admin/comments/', AdminCommentListView.as_view(), name='admin-comment-list'),

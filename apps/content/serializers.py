@@ -25,16 +25,60 @@ class ShowSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'category': {'write_only': True},
             'author': {'write_only': True},
+            'thumbnail': {'allow_null': True},
         }
 
 class EpisodeSerializer(serializers.ModelSerializer):
+    audio_file = serializers.FileField(write_only=True, required=False)
+    audio_url = serializers.SerializerMethodField()
+
     class Meta:
         model = Episode
-        fields = ('id', 'show', 'title', 'description', 'duration_seconds', 'sequence_number', 'created_at')
+        fields = ('id', 'show', 'title', 'description', 'duration_seconds', 'sequence_number', 'audio_file_key', 'hls_playlist_key', 'audio_file', 'audio_url', 'created_at')
+        extra_kwargs = {
+            'audio_file_key': {'required': False},
+            'hls_playlist_key': {'required': False},
+        }
+
+    def get_audio_url(self, obj):
+        from services.storage import storage_service
+        if obj.audio_file_key:
+            try:
+                return storage_service.generate_signed_url(obj.audio_file_key)
+            except Exception:
+                return None
+        return None
+
+    def create(self, validated_data):
+        audio_file = validated_data.pop('audio_file', None)
+        if audio_file:
+            from django.core.files.storage import default_storage
+            import uuid, os
+            ext = os.path.splitext(audio_file.name)[1].lower()
+            key = f"uploads/audio/{uuid.uuid4().hex}{ext}"
+            default_storage.save(key, audio_file)
+            validated_data['audio_file_key'] = key
+        return super().create(validated_data)
+
+    def update(self, instance, validated_data):
+        audio_file = validated_data.pop('audio_file', None)
+        if audio_file:
+            from django.core.files.storage import default_storage
+            import uuid, os
+            # Delete old audio from R2 if exists
+            if instance.audio_file_key:
+                try:
+                    default_storage.delete(instance.audio_file_key)
+                except Exception:
+                    pass
+            ext = os.path.splitext(audio_file.name)[1].lower()
+            key = f"uploads/audio/{uuid.uuid4().hex}{ext}"
+            default_storage.save(key, audio_file)
+            validated_data['audio_file_key'] = key
+        return super().update(instance, validated_data)
 
 class EpisodeDetailSerializer(EpisodeSerializer):
-    class Meta(EpisodeSerializer.Meta):
-        fields = EpisodeSerializer.Meta.fields + ('audio_file_key', 'hls_playlist_key')
+    pass
 
 class EpisodeAnalyticsSerializer(serializers.ModelSerializer):
     class Meta:
@@ -42,30 +86,18 @@ class EpisodeAnalyticsSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 class TeaserSerializer(serializers.ModelSerializer):
-    video_url = serializers.SerializerMethodField()
-    thumbnail_url = serializers.SerializerMethodField()
+    image_url = serializers.SerializerMethodField()
+    converted_show_title = serializers.ReadOnlyField(source='converted_show.title', default=None)
 
     class Meta:
         model = Teaser
-        fields = ('id', 'show', 'title', 'video_key', 'thumbnail_key', 'video_url', 'thumbnail_url', 'duration_seconds', 'sequence')
+        fields = ('id', 'title', 'image', 'image_url', 'sequence', 'is_active', 'is_converted', 'converted_show', 'converted_show_title', 'created_at')
 
-    def get_video_url(self, obj):
-        from services.storage import storage_service
-        if obj.video_key:
-            try:
-                return storage_service.generate_signed_url(obj.video_key)
-            except Exception:
-                return None
-        return None
-
-    def get_thumbnail_url(self, obj):
-        from services.storage import storage_service
-        if obj.thumbnail_key:
-            try:
-                return storage_service.generate_signed_url(obj.thumbnail_key)
-            except Exception:
-                return None
-        return None
+    def get_image_url(self, obj):
+        try:
+            return obj.image.url if obj.image else None
+        except Exception:
+            return None
 
 class PreloadEpisodeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -75,11 +107,10 @@ class PreloadEpisodeSerializer(serializers.ModelSerializer):
 class PreloadShowSerializer(serializers.ModelSerializer):
     category_name = serializers.ReadOnlyField(source='category.name')
     thumbnail_url = serializers.SerializerMethodField()
-    teasers = TeaserSerializer(many=True, read_only=True)
 
     class Meta:
         model = Show
-        fields = ('id', 'title', 'description', 'thumbnail', 'thumbnail_url', 'category_name', 'age_rating', 'teasers')
+        fields = ('id', 'title', 'description', 'thumbnail', 'thumbnail_url', 'category_name', 'age_rating')
 
     def get_thumbnail_url(self, obj):
         try:

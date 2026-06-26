@@ -11,7 +11,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import OTPSendSerializer, OTPVerifySerializer, UserSerializer
-from services.twilio_service import twilio_service
+from services.sms_service import sms_service
 
 User = get_user_model()
 
@@ -52,12 +52,12 @@ class SendOTPView(APIView):
             user.otp_expiry = timezone.now() + timedelta(minutes=5)
             user.save()
 
-        # Send via Twilio
+        # Send via MSG91
         formatted_phone = f"{settings.DUMMY_COUNTRY_CODE}{phone_number}"
-        result = twilio_service.send_otp(formatted_phone, otp_code)
+        result = sms_service.send_otp(formatted_phone, otp_code)
 
         if "error" in result:
-            print(f"Twilio error: {result['error']}")
+            print(f"MSG91 error: {result['error']}")
 
         return Response({"message": "OTP sent successfully"}, status=status.HTTP_200_OK)
 

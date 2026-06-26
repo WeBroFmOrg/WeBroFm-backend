@@ -1,0 +1,114 @@
+Generate a "Teaser Cards" management page for the admin panel using React + TypeScript + Vite + Tailwind CSS v3 + shadcn/ui with dark theme.
+
+API: https://api.webrofm.in/api
+Auth: Bearer token
+
+====================================================
+TEASER SYSTEM — WHAT IT IS
+====================================================
+Teasers are standalone image cards with a title. They are NOT linked to any show initially.
+Admins create teasers (just image + name) as promotional/draft content.
+Later, admin can CONVERT a teaser into a full Show by clicking "Convert to Show" button.
+This creates a new Show (with the teaser's title + image), then admin goes to the Shows section to add episodes.
+After conversion, the teaser shows a "Converted to Show X" badge.
+
+====================================================
+API ENDPOINTS
+====================================================
+
+GET /admin/teasers/
+  Response: [{ "id", "title", "image" (upload path), "image_url" (signed R2 URL), "sequence", "is_active", "is_converted" (bool), "converted_show" (show id or null), "converted_show_title" (show title or null), "created_at" }]
+  Note: This returns ALL teasers (both draft and converted).
+
+POST /admin/teasers/
+  Body: FormData { "title" (required), "sequence" (number, default 0), "image" (file upload, image/*, optional) }
+  Note: Backend auto-uploads image to R2 via django-storages. image_url auto-generated as signed URL.
+
+GET /admin/teasers/<id>/
+PUT /admin/teasers/<id>/
+  Body: FormData { "title", "sequence", "image" (file, optional — leave empty to keep existing) }
+  Note: If new image uploaded, old one auto-deleted from R2 on successful save.
+
+DELETE /admin/teasers/<id>/
+
+POST /admin/teasers/<id>/convert-to-show/
+  Body (JSON): { "category": <category_id>, "author": <author_id>, "description": "Show description text" }
+  Response: {
+    "message": "Show created from teaser",
+    "show": { full show object (id, title, description, category, author, thumbnail, age_rating: "U") },
+    "teaser": { updated teaser object (is_converted: true, converted_show: <show_id>) }
+  }
+  Note: Backend copies teaser image to show thumbnail path in R2. Show gets age_rating="U" by default (can be changed later in Shows section).
+  Required fields: category, author. Description is optional.
+  If teaser already converted, returns 400 error.
+
+====================================================
+COLOR PALETTE
+====================================================
+- Primary: #00D2FF, Secondary: #7000FF, Gradient: from-[#00D2FF] to-[#7000FF]
+- BG: #020617, Card: slate-900/40 with backdrop-blur, Border: white/5
+- Text: slate-200, slate-400 muted
+- Emerald: #53E076 for "converted" status
+- Rose: #f43f5e for delete actions
+
+====================================================
+ADDITIONAL ENDPOINTS NEEDED (for convert modal dropdowns)
+====================================================
+
+GET /admin/categories/
+  Response: [{ "id", "name", "slug" }]
+
+GET /admin/authors/
+  Response: [{ "id", "name", "bio" }]
+
+====================================================
+UI REQUIREMENTS
+====================================================
+
+1. Top bar: Left side shows title "Teaser Cards" with count summary ("X active • Y converted"). Right side has "Add Teaser Image" gradient button.
+
+2. Table columns:
+   - Image (80x56px rounded overflow, show placeholder icon if no image)
+   - Title (bold)
+   - Sequence (#number)
+   - Status badge:
+     * Draft = sky-400 text on sky-400/10 bg (when is_converted = false)
+     * Converted to: Show Name = emerald-400 text on emerald-500/10 bg with arrow icon (when is_converted = true)
+   - Actions:
+     * Convert to Show button (emerald-400, arrow-up-right icon) — only visible for draft teasers
+     * Edit button (slate-400)
+     * Delete button (rose-400)
+
+3. Create/Edit Modal (glass card with backdrop blur):
+   - Title input (required)
+   - Sequence number input (default 0)
+   - Image file upload (accept="image/*"), styled with gradient custom file button
+   - For edit: label says "leave empty to keep current"
+   - Cancel + Submit buttons
+
+4. Convert to Show Modal (opens when Convert button clicked):
+   - Title: 'Convert "TeaserTitle" to Show' with emerald arrow icon
+   - Category dropdown (from GET /admin/categories/, required)
+   - Author dropdown (from GET /admin/authors/, required)
+   - Description textarea (optional, placeholder: "Show description...")
+   - Cancel + "Create Show & Add Episodes" button (gradient from-emerald-400 to-[#00D2FF])
+   - After conversion, shows success toast, modal closes, table refreshes with converted badge
+
+5. Delete: ConfirmDialog component, warning message, on confirm → DELETE endpoint → success toast → refresh
+
+6. Empty state: "No teasers" with description "Add teaser images that can later be turned into shows." + action button
+
+7. Loading: table skeleton
+
+8. Toast notifications for all CRUD operations + convert action
+
+9. Row hover effect: bg-white/[0.015]
+
+====================================================
+IMPORTANT NOTES
+====================================================
+- Teasers have NO video field anymore — only image + title
+- "Convert to Show" creates a new Show, it does NOT delete the teaser
+- After conversion, the show gets age_rating="U" and the teaser's image as thumbnail
+- To add episodes to the converted show, admin goes to Shows section
+- If needed, admin can later edit the converted show (change age_rating, add episodes, etc.) from the Shows page

@@ -1,0 +1,284 @@
+# WeBro FM Admin Panel — React UI Prompt
+
+## Overview
+Create a complete admin panel UI in React + TypeScript + Vite + Tailwind CSS + shadcn/ui. Dark theme only (#0f172a background, Electric Blue #00D2FF, Purple #7000FF). This is a testing panel — must have every API endpoint connected and working.
+
+---
+
+## 1. Authentication (Two methods)
+
+### Method A: OTP Login (Regular Users)
+```
+POST /api/auth/send-otp/
+Body: { "phone_number": "9999999999" }
+→ 200: { "message": "OTP sent successfully", "otp": "123456" }
+(Dev mode OTP is always 123456 for phone 9999999999)
+
+POST /api/auth/verify-otp/
+Body: { "phone_number": "9999999999", "otp_code": "123456" }
+→ 200: { "access": "jwt_token", "refresh": "jwt_token", "user": { id, full_name, phone_number, email } }
+```
+
+### Method B: Password Login (Admin Users)
+```
+POST /api/admin/login/
+Body: { "phone_number": "8888888888", "password": "Admin@12345" }
+→ 200: { "access": "jwt_token", "refresh": "jwt_token", "user": { id, full_name, phone_number, is_superuser } }
+```
+
+### Dev dummy OTP credentials
+- Phone: `9999999999`
+- OTP: `123456`
+
+### Admin credentials
+- Phone: `8888888888`
+- Password: `Admin@12345`
+
+---
+
+## 2. UI Structure
+
+### Login Screen
+- Tab switcher: "OTP Login" | "Password Login"
+- OTP Login: Phone input → Send OTP button → OTP input (6 digits) → Verify button
+- Password Login: Phone input + Password input → Login button
+- On success, save tokens to localStorage, redirect to Dashboard
+- Token refresh logic: when 401, call POST /api/auth/refresh/ with refresh token
+
+### Sidebar Navigation (Collapsible)
+```
+📊 Dashboard
+👥 Users
+📂 Categories
+✍️ Authors
+📺 Shows
+🎵 Episodes
+💬 Comments
+📢 Reports
+📖 Feedback
+📖 Stories
+📢 Sponsorships
+☁️ R2 Storage
+❤️ Likes
+⭐ Favorites
+```
+
+### Dashboard Page
+```
+GET /api/admin/dashboard/stats/
+Headers: Authorization: Bearer <token>
+Response: {
+  summary: { users, shows, episodes, hits, categories, authors, comments, feedback, pending_stories, pending_ads, weekly_hits, weekly_new_users },
+  categories: [{ name, show_count }]
+}
+```
+Show stats cards with icons, numbers, and a category bar chart.
+
+---
+
+## 3. All CRUD Pages (with exact API calls)
+
+### USERS
+```
+GET  /api/admin/users/              ?search=text
+GET  /api/admin/users/<id>/
+PUT  /api/admin/users/<id>/         { full_name, email, date_of_birth, interests (array of category ids) }
+DELETE /api/admin/users/<id>/
+POST /api/admin/users/<id>/action/  { action: "block"|"activate"|"make_staff"|"remove_staff" }
+```
+Table: ID, Phone, Name, Email, DOB, Joined, Actions (Edit, Block, Delete, Make Staff)
+Modal form for editing user fields.
+
+### CATEGORIES
+```
+GET    /api/admin/categories/
+POST   /api/admin/categories/       { name, slug, icon (file upload) }
+GET    /api/admin/categories/<id>/
+PUT    /api/admin/categories/<id>/  { name, slug, icon (file) }
+DELETE /api/admin/categories/<id>/
+```
+Table + Create/Edit modal with image upload preview.
+
+### AUTHORS
+```
+GET    /api/admin/authors/
+POST   /api/admin/authors/          { name, bio, image (file) }
+GET    /api/admin/authors/<id>/
+PUT    /api/admin/authors/<id>/     { name, bio, image (file) }
+DELETE /api/admin/authors/<id>/
+```
+Table + modal.
+
+### SHOWS
+```
+GET    /api/admin/shows/             ?search=text&category=id
+POST   /api/admin/shows/             { title, description, category(id), author(id), thumbnail(file), age_rating("U"|"UA"|"13+"|"18+"), is_featured(bool), is_trending(bool) }
+GET    /api/admin/shows/<id>/
+PUT    /api/admin/shows/<id>/        (same as POST fields)
+DELETE /api/admin/shows/<id>/
+```
+Table with search + category filter dropdown. Modal form with file upload for thumbnail, select dropdowns for category/author, checkboxes for is_featured/is_trending.
+
+### EPISODES
+```
+GET    /api/admin/episodes/          ?show=id
+POST   /api/admin/episodes/          { show(id), title, description, duration_seconds, sequence_number }
+GET    /api/admin/episodes/<id>/
+PUT    /api/admin/episodes/<id>/     { show, title, description, duration_seconds, sequence_number, audio_file_key, hls_playlist_key }
+DELETE /api/admin/episodes/<id>/
+GET    /api/admin/episodes/<id>/analytics/
+PUT    /api/admin/episodes/<id>/analytics/  { total_plays, avg_listen_time, completion_rate, likes, shares }
+```
+Table filterable by show. Episode detail view shows analytics too.
+
+### COMMENTS
+```
+GET    /api/admin/comments/          ?episode=id
+DELETE /api/admin/comments/<id>/
+PATCH  /api/admin/comments/<id>/     { is_active: true/false }
+```
+Table with toggle active/inactive, delete.
+
+### REPORTS
+```
+GET    /api/admin/reports/           ?resolved=true/false
+POST   /api/admin/reports/<id>/resolve/
+```
+Table with resolve button.
+
+### FEEDBACK
+```
+GET    /api/admin/feedback/
+```
+Read-only table.
+
+### STORIES
+```
+GET    /api/admin/stories/           ?status=pending|reviewing|approved|rejected
+GET    /api/admin/stories/<id>/
+PUT    /api/admin/stories/<id>/      { title, content }
+DELETE /api/admin/stories/<id>/
+POST   /api/admin/collab/<id>/action/  { action: "approve"|"reject"|"reviewing", reason }
+```
+Table with status filter tabs and Approve/Reject/Review buttons.
+
+### SPONSORSHIPS
+```
+GET    /api/admin/sponsorships/      ?status=pending|approved|rejected|expired
+GET    /api/admin/sponsorships/<id>/
+PUT    /api/admin/sponsorships/<id>/ { brand_name, description, ad_visual(file), target_url }
+DELETE /api/admin/sponsorships/<id>/
+POST   /api/admin/sponsorships/<id>/action/  { action: "approve"|"reject"|"expire", reason }
+```
+Table with status filter + Approve/Reject/Expire buttons.
+
+### R2 STORAGE EXPLORER
+```
+GET    /api/admin/storage/explorer/  ?prefix=path/
+POST   /api/admin/storage/upload/    FormData: file + prefix + compress (true/false)
+DELETE /api/admin/storage/delete/    { key: "path/to/file" }
+```
+File browser UI: list files in folders, upload button, delete button. Show Audio/ and images/ folders.
+
+### LIKES (read-only)
+```
+GET    /api/admin/likes/             ?episode=id
+```
+
+### FAVORITES (read-only)
+```
+GET    /api/admin/favorites/
+```
+
+---
+
+## 4. Technical Requirements
+
+### Auth Flow
+- Store `access_token` and `refresh_token` in localStorage
+- Create an Axios/fetch interceptor: on 401, call `POST /api/auth/refresh/` with `{ refresh: refreshToken }`, get new access token, retry request
+- On refresh failure, redirect to login
+- Base URL: `https://api.webrofm.in`
+
+### Theme
+- Background: `#0f172a` (slate-900)
+- Primary: Electric Blue `#00D2FF`
+- Accent: Purple `#7000FF`
+- Cards: `#1e293b` (slate-800)
+- Text: `#f1f5f9` (slate-100)
+- Muted text: `#64748b` (slate-500)
+- Borders: `#334155` (slate-700)
+- Use shadcn/ui dark theme variant
+
+### State Management
+- React Query (TanStack Query) for all API calls with caching
+- OR simple fetch with useState/useEffect (no external state lib needed for testing)
+
+### Form Handling
+- React Hook Form + Zod for validation
+- File upload preview for images
+- Loading states (spinners/skeleton)
+- Toast notifications for success/error
+
+### Routing
+- React Router v6
+- Protected routes (redirect to login if no token)
+- /login → LoginPage
+- / → redirect to /dashboard
+- /dashboard → DashboardPage
+- /users, /categories, /authors, /shows, /episodes, /comments, /reports, /feedback, /stories, /sponsorships, /storage, /likes, /favorites
+
+### Layout
+- Fixed sidebar (left, 240px) with scrollable nav
+- Top header bar (shows current page title + breadcrumb)
+- Main content area (padding, scroll)
+- Sidebar has icons + labels, collapses to icons-only on smaller screens
+
+### Data Display
+- Tables with: sortable columns, pagination (20 per page), search bar where applicable
+- All tables show total count
+- Empty state message when no data
+- Confirm dialogs for delete actions (shadcn AlertDialog)
+
+---
+
+## 5. Example API Call Pattern (Add this to all pages)
+
+```typescript
+const API_BASE = 'https://api.webrofm.in/api';
+
+// GET with auth
+const res = await fetch(`${API_BASE}/admin/users/`, {
+  headers: { Authorization: `Bearer ${token}` }
+});
+
+// POST with auth + JSON
+const res = await fetch(`${API_BASE}/admin/users/<id>/action/`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+  body: JSON.stringify({ action: 'block' })
+});
+
+// POST with auth + file upload
+const formData = new FormData();
+formData.append('name', 'New Category');
+formData.append('slug', 'new-category');
+formData.append('icon', file);
+const res = await fetch(`${API_BASE}/admin/categories/`, {
+  method: 'POST',
+  headers: { Authorization: `Bearer ${token}` },
+  body: formData
+});
+```
+
+---
+
+## 6. Deliverables
+- Single folder with all React source files
+- package.json with all deps
+- vite.config.ts with proxy setup
+- tailwind.config.ts with custom colors (dark theme)
+- App.tsx with Router setup
+- Components for each page
+- Reusable Table, Modal, FormField components
+- Use shadcn/ui components (button, card, table, dialog, form, input, select, toast, tabs, alert-dialog, skeleton, badge, separator)

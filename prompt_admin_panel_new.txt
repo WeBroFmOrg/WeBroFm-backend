@@ -1,0 +1,326 @@
+Generate a full-stack admin panel UI application using React + TypeScript + Vite + Tailwind CSS v3 + shadcn/ui components with a dark theme.
+
+Base URL: https://api.webrofm.in/api
+
+All admin endpoints require Bearer token authentication. Login returns access/refresh tokens stored in localStorage.
+
+====================================================
+COLOR PALETTE
+====================================================
+- Primary: #00D2FF (cyan)
+- Secondary: #7000FF (purple)
+- Gradient: from-[#00D2FF] to-[#7000FF]
+- Background: #020617 (slate-950)
+- Card: rgba(15, 23, 42, 0.4) with backdrop-blur
+- Text: slate-200, slate-400 for muted
+- Success: #53E076
+- Error: #f43f5e (rose-500)
+- Border: rgba(255,255,255,0.05)
+
+====================================================
+AUTH ENDPOINTS
+====================================================
+
+POST /admin/login/
+  Body: { "phone_number": "8888888888", "password": "Admin@12345" }
+  Response: { "refresh": "...", "access": "...", "user": { "id", "full_name", "phone_number", "is_superuser" } }
+  Note: Store tokens. All other endpoints use Bearer token.
+
+====================================================
+DASHBOARD
+====================================================
+
+GET /admin/dashboard/stats/
+  Response: {
+    "summary": { "users", "shows", "episodes", "hits", "categories", "authors", "comments", "feedback", "pending_stories", "pending_ads", "weekly_hits", "weekly_new_users" },
+    "categories": [{ "name", "show_count" }]
+  }
+
+====================================================
+USERS
+====================================================
+
+GET /admin/users/?search=<phone_or_name>
+  Response: [{ "id", "phone_number", "email", "full_name", "date_of_birth", "profile_picture", "is_active", "is_staff", "is_superuser", "interests": [category_ids], "date_joined" }]
+
+GET /admin/users/<id>/
+  Response: Single user object
+
+PUT /admin/users/<id>/
+  Body: { "full_name", "email", "is_active", "is_staff" }
+
+DELETE /admin/users/<id>/
+
+POST /admin/users/<id>/action/
+  Body: { "action": "block" | "activate" | "make_staff" | "remove_staff" }
+  Response: { "message", "is_active" (or "is_staff") }
+
+====================================================
+CATEGORIES
+====================================================
+
+GET /admin/categories/
+  Response: [{ "id", "name", "slug", "icon", "is_active" }]
+
+POST /admin/categories/
+  Body (JSON or FormData): { "name", "slug", "icon" (file, optional) }
+
+GET /admin/categories/<id>/
+
+PUT /admin/categories/<id>/
+  Body: { "name", "slug", "icon" (file, optional) }
+
+DELETE /admin/categories/<id>/
+
+====================================================
+AUTHORS
+====================================================
+
+GET /admin/authors/
+  Response: [{ "id", "name", "bio", "image" }]
+
+POST /admin/authors/
+  Body (JSON or FormData): { "name", "bio", "image" (file, optional) }
+
+GET /admin/authors/<id>/
+
+PUT /admin/authors/<id>/
+
+DELETE /admin/authors/<id>/
+
+====================================================
+SHOWS
+====================================================
+
+GET /admin/shows/?search=<title>&category=<id>
+  Response: [{ "id", "title", "description", "category" (id), "category_name", "author" (id), "author_name", "thumbnail" (url), "age_rating", "is_featured", "is_trending", "created_at" }]
+  Note: category and author are write-only. category_name and author_name are read-only.
+
+POST /admin/shows/
+  Body (JSON or FormData): {
+    "title" (required),
+    "description" (required),
+    "category" (id, required),
+    "author" (id, required),
+    "thumbnail" (url string, optional - send empty to skip),
+    "age_rating": "U" | "UA" | "13+" | "18+",
+    "is_featured": bool,
+    "is_trending": bool
+  }
+  Note: Frontend must strip empty string fields from JSON body. For thumbnail, if empty string, delete the key from payload.
+
+GET /admin/shows/<id>/
+
+PUT /admin/shows/<id>/
+  Same fields as POST. Empty string for thumbnail = remove thumbnail.
+
+DELETE /admin/shows/<id>/
+
+====================================================
+EPISODES (IN SHOW)
+====================================================
+
+GET /admin/episodes/?show=<show_id>
+  Response: [{ "id", "show", "title", "description", "duration_seconds", "sequence_number", "audio_file_key", "hls_playlist_key", "audio_url" (signed URL), "created_at" }]
+
+POST /admin/episodes/
+  Body: FormData {
+    "show" (id),
+    "title",
+    "description",
+    "duration_seconds",
+    "sequence_number",
+    "audio_file" (file upload - MP3, auto R2 upload)
+  }
+  Note: audio_file_key and hls_playlist_key are set automatically by backend when audio_file is uploaded. Do NOT send them manually.
+
+GET /admin/episodes/<id>/
+
+PUT /admin/episodes/<id>/
+  Body: FormData with fields to update. Upload new audio_file to replace old one (old auto-deleted from R2).
+
+DELETE /admin/episodes/<id>/
+
+====================================================
+EPISODE ANALYTICS
+====================================================
+
+GET /admin/episodes/<episode_id>/analytics/
+  Response: { "id", "episode", "total_plays", "avg_listen_time" (minutes as float), "completion_rate" (percentage), "likes", "shares", "retention_data": {}, "geographic_hits": {} }
+
+PUT /admin/episodes/<episode_id>/analytics/
+  Body: { "total_plays", "avg_listen_time", "completion_rate" } (partial update)
+
+====================================================
+EPISODE PLAY (Admin redirect)
+====================================================
+
+GET /admin/episodes/<id>/play/
+  Response: 302 Redirect to signed audio URL (opens in new tab)
+
+====================================================
+TEASERS (Video cards for shows)
+====================================================
+
+GET /admin/teasers/?show=<show_id>
+  Response: [{ "id", "show", "show_title", "title", "video_key", "thumbnail_key", "video_url" (signed URL), "thumbnail_url" (signed URL), "duration_seconds", "sequence" }]
+
+POST /admin/teasers/
+  Body: FormData {
+    "show" (id),
+    "title",
+    "sequence",
+    "duration_seconds",
+    "video_file" (file upload - MP4/MOV, required),
+    "thumbnail_file" (file upload - image, optional)
+  }
+  Note: video_key and thumbnail_key are set automatically. Teaser video and thumbnail auto-upload to R2.
+
+GET /admin/teasers/<id>/
+
+PUT /admin/teasers/<id>/
+  Body: FormData. Upload new video_file or thumbnail_file to replace.
+
+DELETE /admin/teasers/<id>/
+
+====================================================
+COMMENTS
+====================================================
+
+GET /admin/comments/?episode=<episode_id>
+  Response: [{ "id", "username" (full_name), "episode", "story", "text", "is_active", "created_at" }]
+
+DELETE /admin/comments/<comment_id>/
+  Response: { "message": "Comment removed" }
+
+PATCH /admin/comments/<comment_id>/
+  Body: { "is_active": true/false }
+  Response: { "message": "Comment updated", "is_active": bool }
+
+====================================================
+LIKES & FAVORITES (Read-only)
+====================================================
+
+GET /admin/likes/?episode=<episode_id>
+  Response: [{ "id", "user", "episode", "story", "created_at" }]
+
+GET /admin/favorites/
+  Response: [{ "id", "user", "show": { show object }, "created_at" }]
+
+====================================================
+REPORTS
+====================================================
+
+GET /admin/reports/?resolved=true|false
+  Response: [{ "id", "reported_by" (user info), "ad" (id), "reason", "is_resolved", "created_at" }]
+
+POST /admin/reports/<report_id>/resolve/
+  Response: { "message": "Report resolved" }
+
+====================================================
+FEEDBACK (Read-only)
+====================================================
+
+GET /admin/feedback/
+  Response: [{ "id", "user", "episode", "rating" (1-5), "comment", "created_at", "username" }]
+
+====================================================
+STORIES / COLLAB
+====================================================
+
+GET /admin/stories/?status=pending|reviewing|approved|rejected
+  Response: [{ "id", "username" (phone_number), "title", "content", "status", "rejection_reason", "created_at" }]
+
+GET /admin/stories/<id>/
+
+PUT /admin/stories/<id>/
+  Body: { "status", "rejection_reason" }
+
+DELETE /admin/stories/<id>/
+
+POST /admin/collab/<collab_id>/action/
+  Body: { "action": "approve" | "reject" | "reviewing", "reason": "rejection text (required for reject)" }
+  Response: { "status", "message" }
+
+====================================================
+SPONSORSHIPS / ADS
+====================================================
+
+GET /admin/sponsorships/?status=pending|approved|rejected|expired
+  Response: [{ "id", "brand_name", "description", "ad_visual" (image URL), "target_url", "status", "rejection_reason", "created_at" }]
+
+GET /admin/sponsorships/<id>/
+
+PUT /admin/sponsorships/<id>/
+  Body: { "status", "rejection_reason", "brand_name" }
+
+DELETE /admin/sponsorships/<id>/
+
+POST /admin/sponsorships/<sponsorship_id>/action/
+  Body: { "action": "approve" | "reject" | "expire", "reason": "rejection text" }
+  Response: { "status", "message" }
+
+====================================================
+R2 STORAGE EXPLORER
+====================================================
+
+GET /admin/storage/explorer/?prefix=uploads/
+  Response: [{ "name": "...", "key": "uploads/...", "size": bytes, "last_modified": "ISO date", "is_dir": bool }]
+  Note: Paginated list of files/folders in R2 bucket at the given prefix path.
+
+POST /admin/storage/upload/
+  Body: FormData { "file" (required), "prefix" (optional, default "uploads/"), "compress" (true/false, default true) }
+  Note: Images automatically compressed (max 1920px, 80% quality). Files uploaded to R2 via django-storages.
+  Response: { "key", "url" (signed), "size", "compressed": bool }
+
+DELETE /admin/storage/delete/
+  Body: { "key": "path/to/file" }
+  Note: Deletes file from R2 bucket.
+
+====================================================
+TOKEN REFRESH (automatic)
+====================================================
+
+If any admin endpoint returns 401, the client should try:
+  POST /admin/token/refresh/ with { "refresh": "..." }
+  POST /token/refresh/ (fallback)
+  POST /admin/refresh/ (fallback)
+
+====================================================
+NAVIGATION STRUCTURE (Sidebar)
+====================================================
+
+Dashboard
+Users Management
+Content Manager (collapsible):
+  - Shows (with episode inspector sidebar + CRUD)
+  - Episodes (per-show, file upload for audio)
+  - Teasers (video cards per show, file upload)
+  - Categories
+  - Authors
+Engagement (collapsible):
+  - Comments
+  - Likes
+  - Favorites
+Feedback & Reports (collapsible):
+  - Feedback
+  - Reports
+Collaboration (collapsible):
+  - Stories
+  - Sponsorships
+R2 Storage Explorer
+
+====================================================
+UI REQUIREMENTS
+====================================================
+1. Dark theme only, glass-morphism cards, gradient buttons
+2. All forms support both JSON and file upload (FormData for files)
+3. Table views with search/filter, pagination, click rows for detail
+4. Show page: click show row → right sidebar shows episodes list + play button
+5. Episode create/edit: audio_file is file input (not text field)
+6. Teaser create/edit: video_file and thumbnail_file are file inputs
+7. Delete confirm dialog before destructive actions
+8. Success/error toast notifications
+9. Responsive: sidebar collapse on mobile
+10. R2 Storage Explorer: folder navigation, file list, upload button, delete option
+11. Stats cards on dashboard with icons

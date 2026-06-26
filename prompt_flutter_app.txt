@@ -1,0 +1,277 @@
+Generate a Flutter mobile application for "WeBro FM" — an audio drama streaming platform. Use clean architecture with provider/riverpod for state management, just_audio for audio playback, and dio for HTTP.
+
+Base URL: https://api.webrofm.in/api
+
+====================================================
+AUTH SYSTEM
+====================================================
+
+Phone OTP-based. Dev mode: phone=9999999999, otp=123456 (always works).
+
+ENDPOINT: POST /api/auth/send-otp/
+  Body: { "phone_number": "9999999999" }
+  Response: { "message": "OTP sent successfully" } | { "otp": "123456" } (dev mode only)
+  Note: Send OTP on phone number entry screen. Dev mode returns OTP in response.
+
+ENDPOINT: POST /api/auth/verify-otp/
+  Body: { "phone_number": "9999999999", "otp_code": "123456" }
+  Response: { "access": "jwt_token", "refresh": "refresh_token", "user": { "id", "phone_number", "email", "full_name", "profile_picture" } }
+  Note: Store access + refresh tokens. Access token used as Bearer token for authenticated endpoints.
+
+ENDPOINT: GET /api/auth/profile/
+  Header: Authorization: Bearer <access_token>
+  Response: { "id", "phone_number", "email", "full_name", "date_of_birth", "profile_picture", "interests": [category_ids], "date_joined" }
+
+ENDPOINT: PATCH /api/auth/profile/
+  Header: Bearer token
+  Body: { "full_name", "email", "date_of_birth", "profile_picture" (file), "interests": [category_ids] }
+
+Token Refresh:
+  When any API returns 401, use refresh token to get new access token.
+  Try these URLs in order:
+    POST /api/admin/token/refresh/ -> { "refresh": "refresh_token" } -> { "access": "new_token" }
+    POST /api/token/refresh/
+    POST /api/admin/refresh/
+  If all fail, logout user.
+
+====================================================
+HOME / PRELOAD SCREEN
+====================================================
+
+ENDPOINT: GET /api/home/preload/
+  Auth: Not required (AllowAny)
+  Response: {
+    "shows": [
+      {
+        "id": 1,
+        "title": "Show Title",
+        "description": "...",
+        "thumbnail": "url_or_null",
+        "thumbnail_url": "signed_url_or_null",
+        "category_name": "Drama",
+        "age_rating": "13+",
+        "teasers": [
+          {
+            "id": 1,
+            "show": 1,
+            "title": "Teaser title",
+            "video_url": "signed_url_for_video",
+            "thumbnail_url": "signed_url_for_thumb",
+            "duration_seconds": 30,
+            "sequence": 1
+          }
+        ],
+        "episodes": [
+          {
+            "id": 1,
+            "title": "Episode 1",
+            "sequence_number": 1,
+            "duration_seconds": 3600,
+            "audio_file_key": "uploads/audio/xxx.mp3",
+            "hls_playlist_key": "path/to/hls.m3u8"
+          }
+        ]
+      }
+    ],
+    "categories": [
+      { "id": 1, "name": "Drama", "slug": "drama", "icon": "url_or_null" }
+    ]
+  }
+
+  Cache implementation: Cache response for 5 minutes. On reload, show cached data first, then refresh in background.
+  Usage: This is the main data source for the home screen. Shows list horizontally with teaser videos autoplaying.
+
+ENDPOINT: GET /api/home/
+  Auth: Required (Bearer token)
+  Response: {
+    "featured": [ show objects ],
+    "trending": [ show objects ],
+    "recent": [ show objects ],
+    "categories": [ category objects ]
+  }
+  Note: Authenticated home endpoint with curated sections.
+
+ENDPOINT: GET /api/home/trending/
+  Auth: Not required
+  Response: { "trending": [ { "id", "title", "description", "thumbnail", "category_name", "weekly_hits", "age_rating", "is_featured", "created_at" } ] }
+  Note: Weekly trending shows based on episode hit count.
+
+====================================================
+SHOW DETAIL / EPISODES
+====================================================
+
+ENDPOINT: GET /api/shows/<show_id>/episodes/
+  Auth: Required (Bearer token)
+  Response: [ { "id", "show", "title", "description", "duration_seconds", "sequence_number", "audio_file_key", "hls_playlist_key", "audio_url" (signed URL), "created_at" } ]
+  Note: audio_url is a signed Cloudflare R2 URL valid for 1 hour. Use this directly with just_audio.
+
+====================================================
+AUDIO PLAYBACK
+====================================================
+
+ENDPOINT: GET /api/play/ep/<episode_id>/
+  Auth: Required (Bearer token)
+  Response: { "episode_id": 1, "audio_url": "signed_r2_url", "hls_url": "signed_hls_url_or_null", "title": "...", "expires_in": 3600 }
+  Note: Optional endpoint - audio_url is also directly available in episode list response.
+
+Audio Streaming (just_audio setup):
+  - Use audio_url (MP3) directly with AudioPlayer
+  - If hls_url is available, use it instead for HLS streaming
+  - Track current position and send to server periodically (see Resume/Continue below)
+  - When audio_url expires, fetch fresh URL from play endpoint
+
+====================================================
+USER INTERACTIONS
+====================================================
+
+FAVORITES:
+
+POST /api/user/favorite/toggle/
+  Auth: Bearer token
+  Body: { "show_id": 1 }
+  Response: { "is_favorited": true/false, "message": "Added to favorites" / "Removed from favorites" }
+
+GET /api/user/favorites/
+  Auth: Bearer token
+  Response: [ { "id", "show": { full show object }, "created_at" } ]
+
+LIKES:
+
+POST /api/user/like/toggle/
+  Auth: Bearer token
+  Body: { "episode_id": 1 }
+  Response: { "is_liked": true/false, "message": "..." }
+
+PLAYBACK RESUME / CONTINUE PLAYING:
+
+POST /api/user/resume/update/
+  Auth: Bearer token
+  Body: { "episode_id": 1, "last_position_seconds": 1800 }
+  Note: Send periodically (every 30 seconds) while listening to track position.
+
+GET /api/user/resume/
+  Auth: Bearer token
+  Response: [ { "id", "episode": { full episode obj }, "last_position_seconds": 1800, "updated_at" } ]
+  Note: Show "Continue Playing" section sorted by updated_at (most recent first).
+
+ANALYTICS HIT:
+
+POST /api/analytics/hit/
+  Auth: Bearer token
+  Body: { "episode_id": 1 }
+  Note: Send when user starts playing an episode.
+
+COMMENTS:
+
+GET /api/user/comments/?episode=<episode_id>
+  Auth: Bearer token
+  Response: [ { "id", "username", "episode", "story", "text", "created_at" } ]
+
+POST /api/user/comments/
+  Auth: Bearer token
+  Body: { "episode": 1, "text": "Great episode!" }
+
+FEEDBACK / RATING:
+
+POST /api/user/feedback/
+  Auth: Bearer token
+  Body: { "episode": 1, "rating": 4, "comment": "Loved it" }
+
+REPORT AD:
+
+POST /api/ads/report/
+  Auth: Bearer token
+  Body: { "ad": 1, "reason": "Inappropriate content" }
+
+====================================================
+COLLABORATION (User-Generated)
+====================================================
+
+STORY SUBMISSION:
+
+POST /api/collab/story/submit/
+  Auth: Bearer token
+  Body: { "title": "Story title", "content": "Story text content" }
+  Response: { "id", "title", "content", "status": "pending", "created_at" }
+
+GET /api/collab/stories/
+  Auth: Bearer token
+  Response: [ user's submitted stories with status ]
+
+SPONSORSHIP / AD REQUEST:
+
+POST /api/collab/ads/submit/
+  Auth: Bearer token
+  Body: FormData { "brand_name", "description", "ad_visual" (image file), "target_url" }
+  Response: { "id", "brand_name", "status": "pending" }
+
+GET /api/collab/ads/
+  Auth: Bearer token
+  Response: [ user's ad requests with status ]
+
+====================================================
+APP SCREENS & FLOW
+====================================================
+
+1. SPLASH / AUTH:
+   - Check saved tokens
+   - If valid token, go to Home
+   - If expired/not found, show Phone Entry screen → OTP Verify screen → Home
+
+2. HOME SCREEN (Bottom Tab 1):
+   - Top: Horizontal scrolling reels/teasers (auto-play muted videos)
+   - Sections: Featured, Trending, Recent shows
+   - Each show card: thumbnail, title, category badge, age rating
+   - Tap show → Show Detail screen
+
+3. SHOW DETAIL SCREEN:
+   - Show info: thumbnail, title, description, category, author
+   - "Play All" or episode list
+   - Episode rows: number, title, duration, play button
+   - Favorite toggle (heart icon)
+
+4. EPISODE PLAYER (Full-screen or bottom sheet):
+   - Cover art, episode title, show name
+   - Play/Pause, Seek, Skip forward/back 15s
+   - Speed control (1x, 1.5x, 2x)
+   - Share button
+   - Like button
+   - Comments section below
+   - "Continue where you left off" using resume position
+
+5. SEARCH (Bottom Tab 2):
+   - Search by show title or category
+   - Results as show cards
+   - Filter by category
+
+6. MY LIBRARY (Bottom Tab 3):
+   - Favorites list (shows)
+   - Continue Playing list (episodes with progress bar)
+   - My Submissions (stories + ads with status badges)
+
+7. PROFILE (Bottom Tab 4):
+   - User info (edit: name, email, DOB, profile picture)
+   - App settings
+
+====================================================
+FLUTTER PACKAGES TO USE
+====================================================
+
+- just_audio (audio playback)
+- dio (HTTP client with interceptor for auth)
+- riverpod (state management)
+- flutter_secure_storage (token storage)
+- cached_network_image (image loading)
+- share_plus (share episodes)
+- video_player / flick_video_player (teaser videos)
+- photo_manager or image_picker (profile picture, ad visual upload)
+- google_fonts (typography)
+
+====================================================
+PLACEHOLDER HINTS FOR IMAGES
+====================================================
+
+When thumbnail/avatar URLs are null, use:
+- Show thumbnail: gradient placeholder (primary to secondary)
+- User avatar: circle with first letter of name
+- Teaser thumbnail: gradient placeholder with play icon overlay

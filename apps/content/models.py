@@ -33,7 +33,7 @@ class Show(models.Model):
     description = models.TextField()
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='shows')
     author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name='shows')
-    thumbnail = models.ImageField(upload_to='shows/thumbnails/') # Stored in R2 via custom storage or manual upload
+    thumbnail = models.ImageField(upload_to='shows/thumbnails/', blank=True, null=True) # Stored in R2 via custom storage or manual upload
     age_rating = models.CharField(max_length=5, choices=AGE_RATINGS, default='U')
     is_featured = models.BooleanField(default=False)
     is_trending = models.BooleanField(default=False)
@@ -46,7 +46,7 @@ class Episode(models.Model):
     show = models.ForeignKey(Show, on_delete=models.CASCADE, related_name='episodes')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
-    audio_file_key = models.CharField(max_length=512, help_text="Cloudflare R2 storage key (path)")
+    audio_file_key = models.CharField(max_length=512, blank=True, help_text="Cloudflare R2 storage key (path)")
     duration_seconds = models.PositiveIntegerField(default=0)
     sequence_number = models.PositiveIntegerField(default=1)
     hls_playlist_key = models.CharField(max_length=512, blank=True, help_text="Path to .m3u8 file in R2")
@@ -77,16 +77,16 @@ class EpisodeAnalytics(models.Model):
         return f"Analytics for {self.episode.title}"
 
 class Teaser(models.Model):
-    show = models.ForeignKey(Show, on_delete=models.CASCADE, related_name='teasers')
-    title = models.CharField(max_length=255, blank=True)
-    video_key = models.CharField(max_length=512, help_text="R2 storage key for teaser video")
-    thumbnail_key = models.CharField(max_length=512, blank=True, help_text="R2 storage key for teaser thumbnail")
-    duration_seconds = models.PositiveIntegerField(default=0)
-    sequence = models.PositiveIntegerField(default=1)
+    title = models.CharField(max_length=255)
+    image = models.ImageField(upload_to='teasers/images/', blank=True, null=True)
+    sequence = models.PositiveIntegerField(default=0)
+    is_active = models.BooleanField(default=True)
+    is_converted = models.BooleanField(default=False, help_text="Has been turned into a show")
+    converted_show = models.ForeignKey(Show, on_delete=models.SET_NULL, null=True, blank=True, related_name='converted_from_teaser')
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         ordering = ['sequence']
 
     def __str__(self):
-        return f"Teaser for {self.show.title}"
+        return self.title

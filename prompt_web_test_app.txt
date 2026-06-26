@@ -1,0 +1,228 @@
+# WeBro FM - Web Test App (React + Tailwind + shadcn/ui)
+
+## Goal
+Build a web-based test application that mimics the Flutter mobile app UI for testing all backend APIs. This is NOT the admin panel — this is a user-facing app clone for testing the full flow (login, browse shows, play episodes, etc.).
+
+## Tech Stack
+- React + TypeScript + Vite
+- Tailwind CSS
+- shadcn/ui components
+- React Router v6
+- Axios for API calls
+- LocalStorage for token management
+- React Context for auth state
+
+## Design Theme
+- Dark theme: Background `#0f172a` (slate-900), Cards `#1e293b` (slate-800)
+- Primary accent: Electric Blue `#00D2FF`
+- Secondary accent: Purple `#7000FF`
+- Text: White `#ffffff`, Muted `#94a3b8`
+- Border radius: `rounded-xl` for cards, `rounded-full` for avatars
+- Font: Inter or system font
+- Mobile-first responsive design (max-width 480px for app feel)
+
+## API Base URL
+```
+https://api.webrofm.in/api
+```
+
+## Pages & Features
+
+### 1. Login Screen (`/login`)
+- Phone number input with country code selector (+91 default)
+- "Send OTP" button → calls `POST /auth/send-otp/`
+- OTP input (6 digits, auto-focus next input)
+- "Verify OTP" button → calls `POST /auth/verify-otp/`
+- On success: store tokens (access + refresh) in localStorage, redirect to Home
+- Show loading spinners, error toasts
+- If already logged in (token exists), skip login
+
+**API:**
+```
+POST /api/auth/send-otp/
+Body: { "phone": "9999999999", "country_code": "+91" }
+Response: { "message": "OTP sent", "otp_expiry": 300 }
+
+POST /api/auth/verify-otp/
+Body: { "phone": "9999999999", "country_code": "+91", "otp": "123456" }
+Response: { "refresh": "...", "access": "...", "user": { ... } }
+```
+
+### 2. Home Screen (`/`)
+- Top section: Horizontal scroll of **Categories** as chips/pills
+  - GET `/api/home/preload/` → extract categories
+  - Each chip shows category name + icon
+- Grid of **All Shows** (2 columns on mobile)
+  - GET `/api/home/preload/` → extract shows
+  - Each card: thumbnail (rounded-xl), title, category badge, age rating badge
+  - Click → navigate to `/show/<id>`
+- **Trending Section** (horizontal scroll, separate row at top)
+  - GET `/api/home/trending/` → trending shows
+  - Cards with "Trending" badge + weekly_hits count
+
+### 3. Show Detail Screen (`/show/:id`)
+- Hero section: Large thumbnail with gradient overlay
+- Show title, category, age rating, description
+- **Episodes list** (vertical list)
+  - GET `/api/shows/<id>/episodes/`
+  - Each episode card: sequence number, title, duration, play button
+  - Click play → navigate to `/play/<episode_id>`
+
+### 4. Player Screen (`/play/:episodeId`)
+- GET `/api/play/ep/<id>/` → gets signed audio URL
+- Simple audio player with:
+  - Play/Pause button (circular, centered)
+  - Progress bar (seekable)
+  - Current time / Total duration
+  - Episode title at top
+- Use native HTML5 `<audio>` element with custom controls
+- On play: user must be authenticated (token in header)
+
+### 5. Profile Screen (`/profile`)
+- User info display: name, phone, email, date of birth
+- Edit profile button → `PUT /auth/profile/`
+- Logout button → `POST /auth/logout/` + clear localStorage
+
+**API:**
+```
+GET /api/auth/profile/
+Header: Authorization: Bearer <access_token>
+Response: { "id", "full_name", "phone_number", "email", "date_of_birth", "profile_picture" }
+
+PUT /api/auth/profile/
+Header: Authorization: Bearer <access_token>
+Body: { "full_name": "...", "email": "...", "date_of_birth": "..." }
+```
+
+### 6. Search Screen (`/search`)
+- Search input at top (auto-focus)
+- Calls `GET /api/admin/shows/?search=<query>` (admin endpoint but works with any auth)
+- Results grid (same as home shows)
+- Debounce 300ms on input
+
+### 7. Bottom Navigation Bar (persistent on all pages except login/player)
+4 tabs with icons:
+- Home (house icon)
+- Search (magnifying glass)
+- Trending (fire/flame icon)
+- Profile (person icon)
+
+Active tab: accent color `#00D2FF`, inactive: `#64748b`
+
+## Axios Setup
+```typescript
+const api = axios.create({
+  baseURL: "https://api.webrofm.in/api",
+  headers: { "Content-Type": "application/json" },
+});
+
+// Request interceptor: attach token
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("access_token");
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+// Response interceptor: auto-refresh on 401
+api.interceptors.response.use(
+  (res) => res,
+  async (err) => {
+    if (err.response?.status === 401) {
+      const refresh = localStorage.getItem("refresh_token");
+      if (refresh) {
+        const { data } = await axios.post("https://api.webrofm.in/api/auth/refresh/", { refresh });
+        localStorage.setItem("access_token", data.access);
+        err.config.headers.Authorization = `Bearer ${data.access}`;
+        return api(err.config);
+      }
+    }
+    return Promise.reject(err);
+  }
+);
+```
+
+## Auth Context
+```typescript
+interface AuthContextType {
+  user: User | null;
+  isAuthenticated: boolean;
+  login: (phone: string, countryCode: string) => Promise<void>;
+  verifyOtp: (phone: string, countryCode: string, otp: string) => Promise<void>;
+  logout: () => void;
+}
+```
+
+## Component Breakdown
+- `App.tsx` — Router setup, AuthProvider wrapper, ProtectedRoute logic
+- `context/AuthContext.tsx` — Auth state management
+- `lib/api.ts` — Axios instance + interceptors
+- `components/BottomNav.tsx` — Bottom navigation bar
+- `components/ShowCard.tsx` — Show card (reused in home, search, trending)
+- `components/EpisodeCard.tsx` — Episode list item
+- `components/CategoryChip.tsx` — Category pill
+- `components/LoadingSpinner.tsx` — Centered spinner
+- `components/PlayerBar.tsx` — Mini player bar at bottom when playing
+- `pages/LoginPage.tsx` — OTP login (phone + OTP screens)
+- `pages/HomePage.tsx` — Categories + shows grid + trending
+- `pages/ShowDetailPage.tsx` — Show detail + episodes
+- `pages/PlayerPage.tsx` — Full audio player
+- `pages/ProfilePage.tsx` — User profile + edit + logout
+- `pages/SearchPage.tsx` — Search with results
+
+## Project Setup Commands
+```bash
+npm create vite@latest webrofm-test-app -- --template react-ts
+cd webrofm-test-app
+npm install tailwindcss @tailwindcss/vite
+npm install lucide-react class-variance-authority clsx tailwind-merge
+npm install @radix-ui/react-dialog @radix-ui/react-slot @radix-ui/react-toast
+npm install react-router-dom axios
+npx shadcn@latest init -d
+npx shadcn@latest add button input card toast
+```
+
+## Tailwind Config
+```css
+@layer base {
+  :root {
+    --background: 222 47% 11%;  /* #0f172a */
+    --foreground: 210 40% 98%;
+    --card: 215 28% 17%;        /* #1e293b */
+    --card-foreground: 210 40% 98%;
+    --primary: 187 100% 50%;    /* #00D2FF */
+    --primary-foreground: 222 47% 11%;
+    --secondary: 270 100% 50%;  /* #7000FF */
+    --secondary-foreground: 210 40% 98%;
+    --muted: 215 16% 47%;       /* #64748b */
+    --muted-foreground: 215 20% 65%;
+    --accent: 187 100% 50%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --border: 215 28% 17%;
+    --input: 215 28% 17%;
+    --ring: 187 100% 50%;
+    --radius: 0.75rem;
+  }
+}
+```
+
+## Color Palette (Tailwind classes)
+- Background: `bg-slate-900` (#0f172a)
+- Cards: `bg-slate-800` (#1e293b)
+- Primary text: `text-white`
+- Muted text: `text-slate-400` (#94a3b8)
+- Accent blue: `text-cyan-400` or `#00D2FF`
+- Accent purple: `text-purple-500` or `#7000FF`
+- Borders: `border-slate-700`
+
+## Important Notes
+- All API calls need `Authorization: Bearer <token>` header except login/OTP
+- Handle 401 errors by auto-refreshing token
+- Show toast notifications for errors (OTP failed, network error, etc.)
+- Mobile-first: max-width 480px, centered on desktop
+- Scrollbar styling: thin, dark
+- Loading states: skeleton shimmer for cards
+- Empty states: "No shows yet" illustration
+- OTP input: 6 individual input boxes, auto-advance on typing
+- Audio player: HTML5 audio with custom styled controls
+- Cache: Store preload data in localStorage with 5-min expiry to reduce API calls
