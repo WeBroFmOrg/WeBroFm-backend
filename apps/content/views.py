@@ -7,7 +7,6 @@ from rest_framework import status, permissions, generics
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import Category, Author, Show, Episode
 from .models import Category, Author, Show, Episode, Teaser
 from .serializers import (
     CategorySerializer, ShowSerializer, EpisodeSerializer,
@@ -65,37 +64,49 @@ class WeeklyTrendingView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        week_ago = timezone.now() - timedelta(days=7)
+        cache_key = "trending_ranking"
+        cached = cache.get(cache_key)
+        if cached:
+            return Response({"trending": cached, "cached": True, "updated_at": cached[0].get('_cached_at') if cached else None})
 
-        trending_episodes = (
+        # Fallback: calculate on the fly (happens if cache never populated)
+        trending = self._calculate_ranking()
+        try:
+            cache.set(cache_key, trending, timeout=43200)  # 12 hours
+        except Exception:
+            pass
+        return Response({"trending": trending})
+
+    @staticmethod
+    def _calculate_ranking(limit=20):
+        hits_per_show = (
             EpisodeHit.objects
-            .filter(created_at__gte=week_ago)
             .values('episode__show')
-            .annotate(weekly_hits=Count('id'))
-            .order_by('-weekly_hits')[:10]
+            .annotate(total_hits=Count('id'))
+            .order_by('-total_hits')[:limit]
         )
 
-        episode_ids = [item['episode__show'] for item in trending_episodes]
-        shows = Show.objects.filter(id__in=episode_ids).select_related('category', 'author')
-
+        show_ids = [item['episode__show'] for item in hits_per_show]
+        shows = Show.objects.filter(id__in=show_ids).select_related('category', 'author')
         show_dict = {s.id: s for s in shows}
+
         result = []
-        for item in trending_episodes:
+        for rank, item in enumerate(hits_per_show, start=1):
             show = show_dict.get(item['episode__show'])
             if show:
                 result.append({
+                    "rank": rank,
                     "id": show.id,
                     "title": show.title,
                     "description": show.description,
                     "thumbnail": str(show.thumbnail),
                     "category_name": show.category.name if show.category else None,
-                    "weekly_hits": item['weekly_hits'],
+                    "total_hits": item['total_hits'],
                     "age_rating": show.age_rating,
                     "is_featured": show.is_featured,
                     "created_at": show.created_at
                 })
-
-        return Response({"trending": result})
+        return result
 
 
 class HomeView(APIView):
