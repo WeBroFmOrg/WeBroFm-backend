@@ -279,7 +279,7 @@ class AdminEpisodeAnalyticsView(APIView):
     permission_classes = [permissions.IsAdminUser]
 
     def get(self, request, episode_id):
-        analytics = get_object_or_404(EpisodeAnalytics, episode_id=episode_id)
+        analytics, _ = EpisodeAnalytics.objects.get_or_create(episode_id=episode_id)
         serializer = EpisodeAnalyticsSerializer(analytics)
         return Response(serializer.data)
 

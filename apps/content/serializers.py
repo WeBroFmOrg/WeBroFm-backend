@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Category, Author, Show, Episode, Teaser
+from .models import Category, Author, Show, Episode, EpisodeAnalytics, Teaser
 
 class CategorySerializer(serializers.ModelSerializer):
     class Meta:
@@ -81,9 +81,17 @@ class EpisodeDetailSerializer(EpisodeSerializer):
     pass
 
 class EpisodeAnalyticsSerializer(serializers.ModelSerializer):
+    plays = serializers.IntegerField(source='total_plays', read_only=True)
+    avg_listen_time = serializers.SerializerMethodField()
+
     class Meta:
-        model = Episode
-        fields = '__all__'
+        model = EpisodeAnalytics
+        fields = ('plays', 'avg_listen_time', 'completion_rate', 'likes', 'shares')
+
+    def get_avg_listen_time(self, obj):
+        minutes = int(obj.avg_listen_time)
+        seconds = int((obj.avg_listen_time - minutes) * 60)
+        return f"{minutes}:{seconds:02d}"
 
 class TeaserSerializer(serializers.ModelSerializer):
     image_url = serializers.SerializerMethodField()

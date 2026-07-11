@@ -1,0 +1,93 @@
+Create a single-page brand showcase website for "WeBro FM" — an audio storytelling platform that provides FREE audio stories, dramas, and podcasts.
+
+## Brand Identity
+- Name: WeBro FM (stylized as "WeBro FM")
+- Tagline: "Stories That Speak to You"
+- Colors: Dark theme with deep purple (#1a0a2e), electric violet (#7c3aed), amber accent (#f59e0b)
+- Style: Claymorphism (soft, rounded, clay-like 3D elements with shadows)
+- Font: Clean sans-serif (Inter or Poppins)
+
+## Sections
+
+### 1. Hero Section
+- Background: Dark gradient (deep purple to black)
+- Large heading: "WeBro FM — Infinite Stories, Zero Cost"
+- Subheading: "India's fastest-growing free audio storytelling platform. Thrillers, romance, horror, crime — all free, all yours."
+- Two CTA buttons with claymorphic style:
+  - "Download Android App" (link: #)
+  - "Join WhatsApp Community" (link: #)
+- Animated sound wave or floating audio visualizer effect behind text
+
+### 2. Stats Counter Section
+- Claymorphic number cards showing LIVE counts fetched from API:
+  - "Total Shows" — from GET /api/home/preload/ → data.shows.length
+  - "Total Episodes" — sum of all episodes across shows
+  - "Categories" — from data.categories.length
+  - "Active Listeners" — display "10K+" (static placeholder)
+- Numbers should animate counting up on scroll
+
+### 3. Featured Shows Grid (from API)
+- Fetch from: GET https://api.webrofm.in/api/home/preload/
+- Shows displayed as claymorphic cards with:
+  - Show thumbnail (data.shows[].thumbnail_url)
+  - Show title
+  - Category badge (data.shows[].category_name)
+  - Age rating tag
+  - Episode count
+  - Hover effect: card lifts up slightly
+- Grid: 2 columns on mobile, 3 on tablet, 4 on desktop
+- Clicking a card opens a modal with more details
+
+### 4. What We Offer
+- 4 claymorphic feature cards:
+  - 🎧 "100% Free Audio" — No subscriptions, no hidden charges
+  - 📚 "Diverse Genres" — Crime, Horror, Romance, War, Mystery & more
+  - 🌙 "Listen Anytime" — Download & listen offline, resume where you left
+  - 👥 "Community Driven" — Submit your stories, collaborate with creators
+
+### 5. Genre Categories
+- Fetch categories from API: data.categories[]
+- Display as clickable claymorphic chips/tags
+- Each with a unique emoji icon based on category name
+- On click, filter shows by that category (or show a "coming soon" toast)
+
+### 6. Teasers Section (Coming Soon)
+- Fetch from: data.teasers[] (standalone teaser cards)
+- Claymorphic teaser cards with image + title
+- Badge: "Coming Soon" in amber
+- If teaser has converted_show_title, show it with a link
+
+### 7. Download / Community Section
+- Two large claymorphic cards side by side:
+  - Left: "Get the App" → Android APK download button
+  - Right: "Join the Community" → WhatsApp group link button
+- Icons for each platform
+- Text: "10K+ stories played daily. Be part of the story."
+
+### 8. Footer
+- "WeBro FM © 2026 — Stories That Speak to You"
+- Social links: WhatsApp, Instagram (placeholder links)
+- "Built with ❤️ for storytellers and listeners"
+
+## Technical Requirements
+- Use vanilla HTML/CSS/JS only (single file, no build tools needed)
+- Fetch API data from: https://api.webrofm.in/api/home/preload/
+- Claymorphism: use box-shadow with multiple layers, border-radius: 20-30px, soft backgrounds
+- Dark theme throughout
+- Fully responsive (mobile-first)
+- Smooth scroll and fade-in animations on scroll
+- Lazy load images
+- Error handling: if API fails, show cached/fallback data with retry button
+
+## Loading State
+- Show a pulsing claymorphic skeleton loader while API data loads
+- Brand logo as loading animation in center
+
+## Color Palette
+- Background: #0f0a1a (near black with purple tint)
+- Card bg: #1a0e2e (deep purple)
+- Primary: #7c3aed (violet)
+- Accent: #f59e0b (amber)
+- Text: #f8fafc (white)
+- Muted: #94a3b8 (slate)
+- Clay shadow: rgba(124, 58, 237, 0.2)
