@@ -11,7 +11,40 @@ sys.path.insert(0, os.path.join(BASE_DIR, 'apps'))
 # ── SECURITY ──────────────────────────────────
 SECRET_KEY = config('SECRET_KEY')
 DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*', cast=lambda v: [s.strip() for s in v.split(',')])
+
+# Restrict allowed hosts (comma-separated in .env, e.g. api.webrofm.in,localhost)
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='', cast=lambda v: [s.strip() for s in v.split(',') if s.strip()])
+
+# SSL / HTTPS
+SECURE_SSL_REDIRECT = config('SECURE_SSL_REDIRECT', default=True, cast=bool)
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+
+# HSTS — tell browsers to always use HTTPS for 1 year
+SECURE_HSTS_SECONDS = config('SECURE_HSTS_SECONDS', default=31536000, cast=int)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+SECURE_HSTS_PRELOAD = True
+
+# Secure cookies
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SESSION_COOKIE_HTTPONLY = True
+CSRF_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SAMESITE = 'Lax'
+CSRF_COOKIE_SAMESITE = 'Lax'
+
+# Clickjacking protection
+X_FRAME_OPTIONS = 'DENY'
+
+# MIME-type sniffing prevention
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# XSS filter (legacy browsers)
+SECURE_BROWSER_XSS_FILTER = True
+
+# Referrer policy
+SECURE_REFERRER_POLICY = 'strict-origin-when-cross-origin'
 
 # ── APPS ──────────────────────────────────────
 INSTALLED_APPS = [
@@ -209,7 +242,33 @@ DUMMY_PHONE = config('DUMMY_PHONE', default='9999999999')
 DUMMY_OTP = config('DUMMY_OTP', default='123456')
 DUMMY_COUNTRY_CODE = config('DUMMY_COUNTRY_CODE', default='+91')
 
-# ── SECURE PROXY (for Nginx) ─────────────────
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
-USE_X_FORWARDED_HOST = True
-USE_X_FORWARDED_PORT = True
+# ── LOGGING ───────────────────────────────────
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'file': {
+            'level': 'WARNING',
+            'class': 'logging.FileHandler',
+            'filename': config('LOG_FILE', default='/var/log/webrofm/django.log'),
+            'formatter': 'verbose',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['file'],
+            'level': 'WARNING',
+            'propagate': True,
+        },
+        '': {
+            'handlers': ['file'],
+            'level': 'WARNING',
+        },
+    },
+}

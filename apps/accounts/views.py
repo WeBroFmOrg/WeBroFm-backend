@@ -11,6 +11,7 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from .serializers import OTPSendSerializer, OTPVerifySerializer, UserSerializer
+from .throttles import OTPRateThrottle
 from services.sms_service import sms_service
 
 User = get_user_model()
@@ -26,6 +27,10 @@ class SendOTPView(APIView):
 
         phone_number = serializer.validated_data['phone_number']
 
+        # Rate limit: 3 OTP sends per hour per phone number
+        if not OTPRateThrottle.is_allowed(phone_number):
+            return Response({"error": "Too many OTP attempts. Try again after 1 hour."}, status=status.HTTP_429_TOO_MANY_REQUESTS)
+
         # Find or create user
         user, created = User.objects.get_or_create(phone_number=phone_number)
 
@@ -35,6 +40,7 @@ class SendOTPView(APIView):
         enable_dev = settings.ENABLE_DEV_LOGIN
 
         if enable_dev and phone_number == dummy_phone:
+            OTPRateThrottle.increment(phone_number)
             user.otp_code = dummy_otp
             user.otp_expiry = timezone.now() + timedelta(days=365)
             user.save()
@@ -52,7 +58,8 @@ class SendOTPView(APIView):
             user.otp_expiry = timezone.now() + timedelta(minutes=5)
             user.save()
 
-        # Send via MSG91
+        # Throttle + send via MSG91
+        OTPRateThrottle.increment(phone_number)
         formatted_phone = f"{settings.DUMMY_COUNTRY_CODE}{phone_number}"
         result = sms_service.send_otp(formatted_phone, otp_code)
 
@@ -85,6 +92,7 @@ class VerifyOTPView(APIView):
 
         if enable_dev and phone_number == dummy_phone:
             if otp_code == dummy_otp:
+                OTPRateThrottle.reset(phone_number)
                 refresh = RefreshToken.for_user(user)
                 return Response({
                     'message': 'OTP verified successfully',
@@ -105,10 +113,11 @@ class VerifyOTPView(APIView):
         if user.otp_code != otp_code:
             return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Clear OTP fields
+        # Clear OTP fields and reset throttle
         user.otp_code = None
         user.otp_expiry = None
         user.save()
+        OTPRateThrottle.reset(phone_number)
 
         # Generate JWT
         refresh = RefreshToken.for_user(user)
