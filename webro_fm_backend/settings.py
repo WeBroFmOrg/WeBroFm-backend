@@ -237,10 +237,7 @@ R2_ENDPOINT_URL = config('R2_ENDPOINT_URL', default='')
 # ── MSG91 SMS (OTP) ──────────────────────────
 MSG91_AUTH_KEY = config('MSG91_AUTH_KEY', default='')
 MSG91_TEMPLATE_ID = config('MSG91_TEMPLATE_ID', default='')
-ENABLE_DEV_LOGIN = config('ENABLE_DEV_LOGIN', default=True, cast=bool)
-DUMMY_PHONE = config('DUMMY_PHONE', default='9999999999')
-DUMMY_OTP = config('DUMMY_OTP', default='123456')
-DUMMY_COUNTRY_CODE = config('DUMMY_COUNTRY_CODE', default='+91')
+COUNTRY_CODE = config('COUNTRY_CODE', default='+91')
 
 # ── LOGGING ───────────────────────────────────
 LOGGING = {

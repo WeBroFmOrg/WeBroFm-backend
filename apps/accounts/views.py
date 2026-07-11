@@ -34,33 +34,16 @@ class SendOTPView(APIView):
         # Find or create user
         user, created = User.objects.get_or_create(phone_number=phone_number)
 
-        # Dev/Dummy OTP logic (mirrors old PHP behavior)
-        dummy_phone = settings.DUMMY_PHONE
-        dummy_otp = settings.DUMMY_OTP
-        enable_dev = settings.ENABLE_DEV_LOGIN
+        # Generate 6-digit OTP
+        otp_code = f"{random.randint(100000, 999999)}"
+        user.otp_code = otp_code
+        user.otp_expiry = timezone.now() + timedelta(minutes=5)
+        user.save()
 
-        if enable_dev and phone_number == dummy_phone:
-            OTPRateThrottle.increment(phone_number)
-            user.otp_code = dummy_otp
-            user.otp_expiry = timezone.now() + timedelta(days=365)
-            user.save()
-            return Response({
-                "message": "OTP sent successfully",
-                "otp": dummy_otp
-            }, status=status.HTTP_200_OK)
-
-        # Normal OTP generation - re-use existing OTP if still valid
-        if user.otp_code and user.otp_expiry and user.otp_expiry > timezone.now():
-            otp_code = user.otp_code
-        else:
-            otp_code = f"{random.randint(100000, 999999)}"
-            user.otp_code = otp_code
-            user.otp_expiry = timezone.now() + timedelta(minutes=5)
-            user.save()
-
-        # Throttle + send via MSG91
+        # Track attempt + send via MSG91
         OTPRateThrottle.increment(phone_number)
-        formatted_phone = f"{settings.DUMMY_COUNTRY_CODE}{phone_number}"
+        country_code = getattr(settings, 'COUNTRY_CODE', '+91')
+        formatted_phone = f"{country_code}{phone_number}"
         result = sms_service.send_otp(formatted_phone, otp_code)
 
         if "error" in result:
@@ -85,25 +68,7 @@ class VerifyOTPView(APIView):
         except User.DoesNotExist:
             return Response({"error": "User not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Dev/Dummy OTP verification (skip expiry for dummy)
-        dummy_phone = settings.DUMMY_PHONE
-        dummy_otp = settings.DUMMY_OTP
-        enable_dev = settings.ENABLE_DEV_LOGIN
-
-        if enable_dev and phone_number == dummy_phone:
-            if otp_code == dummy_otp:
-                OTPRateThrottle.reset(phone_number)
-                refresh = RefreshToken.for_user(user)
-                return Response({
-                    'message': 'OTP verified successfully',
-                    'refresh': str(refresh),
-                    'access': str(refresh.access_token),
-                    'user': UserSerializer(user).data
-                }, status=status.HTTP_200_OK)
-            else:
-                return Response({"error": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
-
-        # Normal OTP verification
+        # OTP verification
         if not user.otp_code or not user.otp_expiry:
             return Response({"error": "OTP not set"}, status=status.HTTP_400_BAD_REQUEST)
 
