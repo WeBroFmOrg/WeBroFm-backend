@@ -1,6 +1,21 @@
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
+
+class Language(models.Model):
+    name = models.CharField(max_length=100, unique=True)
+    code = models.CharField(max_length=10, unique=True,
+        help_text="Short code: en, hi, genz, etc.")
+    icon = models.ImageField(upload_to='languages/icons/', blank=True, null=True)
+    is_active = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name_plural = _("Languages")
+
+    def __str__(self):
+        return self.name
+
+
 class Category(models.Model):
     name = models.CharField(max_length=100, unique=True)
     slug = models.SlugField(max_length=100, unique=True)
@@ -33,6 +48,7 @@ class Show(models.Model):
     description = models.TextField()
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='shows')
     author = models.ForeignKey(Author, on_delete=models.CASCADE, related_name='shows')
+    language = models.ForeignKey(Language, on_delete=models.SET_NULL, null=True, blank=True, related_name='shows')
     thumbnail = models.ImageField(upload_to='shows/thumbnails/', blank=True, null=True) # Stored in R2 via custom storage or manual upload
     age_rating = models.CharField(max_length=5, choices=AGE_RATINGS, default='U')
     is_featured = models.BooleanField(default=False)
@@ -46,6 +62,7 @@ class Show(models.Model):
 
 class Episode(models.Model):
     show = models.ForeignKey(Show, on_delete=models.CASCADE, related_name='episodes')
+    language = models.ForeignKey(Language, on_delete=models.SET_NULL, null=True, blank=True, related_name='episodes')
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True)
     audio_file_key = models.CharField(max_length=512, blank=True, help_text="Cloudflare R2 storage key (path)")

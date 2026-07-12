@@ -4,6 +4,7 @@ from .admin_views import (
     AdminLoginView, DashboardStatsView,
     AdminUserListView, AdminUserDetailView, AdminUserActionView,
     AdminCategoryListCreateView, AdminCategoryDetailView,
+    AdminLanguageListCreateView, AdminLanguageDetailView,
     AdminAuthorListCreateView, AdminAuthorDetailView,
     AdminShowListCreateView, AdminShowDetailView,
     AdminEpisodeListCreateView, AdminEpisodeDetailView, AdminEpisodePlayView,
@@ -44,6 +45,10 @@ urlpatterns = [
     # Categories
     path('admin/categories/', AdminCategoryListCreateView.as_view(), name='admin-category-list'),
     path('admin/categories/<int:pk>/', AdminCategoryDetailView.as_view(), name='admin-category-detail'),
+
+    # Languages
+    path('admin/languages/', AdminLanguageListCreateView.as_view(), name='admin-language-list'),
+    path('admin/languages/<int:pk>/', AdminLanguageDetailView.as_view(), name='admin-language-detail'),
 
     # Authors
     path('admin/authors/', AdminAuthorListCreateView.as_view(), name='admin-author-list'),

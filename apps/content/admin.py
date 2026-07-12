@@ -1,5 +1,10 @@
 from django.contrib import admin
-from .models import Category, Author, Show, Episode
+from .models import Language, Category, Author, Show, Episode
+
+@admin.register(Language)
+class LanguageAdmin(admin.ModelAdmin):
+    list_display = ('name', 'code', 'is_active')
+    prepopulated_fields = {'code': ('name',)}
 
 @admin.register(Category)
 class CategoryAdmin(admin.ModelAdmin):

@@ -21,11 +21,11 @@ from PIL import Image
 
 from accounts.models import CustomUser
 from accounts.serializers import UserSerializer
-from content.models import Show, Episode, Category, Author, EpisodeAnalytics, Teaser
+from content.models import Show, Episode, Category, Author, EpisodeAnalytics, Teaser, Language
 from content.serializers import (
     ShowSerializer, EpisodeSerializer, EpisodeDetailSerializer,
     CategorySerializer, AuthorSerializer, EpisodeAnalyticsSerializer,
-    TeaserSerializer
+    TeaserSerializer, LanguageSerializer
 )
 from interactions.models import EpisodeHit, Comment, Report, Feedback, Like, Favorite, ContinuePlaying
 from interactions.serializers import (
@@ -80,6 +80,7 @@ class DashboardStatsView(APIView):
         total_hits = EpisodeHit.objects.count()
         total_categories = Category.objects.count()
         total_authors = Author.objects.count()
+        total_languages = Language.objects.count()
         total_comments = Comment.objects.count()
         total_feedback = Feedback.objects.count()
         pending_stories = StorySubmission.objects.filter(status='pending').count()
@@ -101,6 +102,7 @@ class DashboardStatsView(APIView):
                 "hits": total_hits,
                 "categories": total_categories,
                 "authors": total_authors,
+                "languages": total_languages,
                 "comments": total_comments,
                 "feedback": total_feedback,
                 "pending_stories": pending_stories,
@@ -186,6 +188,24 @@ class AdminCategoryDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 
 # ──────────────────────────────────────────────
+# LANGUAGES - Full CRUD
+# ──────────────────────────────────────────────
+
+class AdminLanguageListCreateView(generics.ListCreateAPIView):
+    permission_classes = [permissions.IsAdminUser]
+    queryset = Language.objects.all().order_by('name')
+    serializer_class = LanguageSerializer
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+
+
+class AdminLanguageDetailView(generics.RetrieveUpdateDestroyAPIView):
+    permission_classes = [permissions.IsAdminUser]
+    queryset = Language.objects.all()
+    serializer_class = LanguageSerializer
+    parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+
+
+# ──────────────────────────────────────────────
 # AUTHORS - Full CRUD
 # ──────────────────────────────────────────────
 
@@ -209,7 +229,7 @@ class AdminAuthorDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class AdminShowListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAdminUser]
-    queryset = Show.objects.filter(is_deleted=False).select_related('category', 'author').order_by('-created_at')
+    queryset = Show.objects.filter(is_deleted=False).select_related('category', 'author', 'language').order_by('-created_at')
     serializer_class = ShowSerializer
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
@@ -217,16 +237,19 @@ class AdminShowListCreateView(generics.ListCreateAPIView):
         qs = super().get_queryset()
         search = self.request.query_params.get('search')
         category_id = self.request.query_params.get('category')
+        language_id = self.request.query_params.get('language')
         if search:
             qs = qs.filter(Q(title__icontains=search) | Q(description__icontains=search))
         if category_id:
             qs = qs.filter(category_id=category_id)
+        if language_id:
+            qs = qs.filter(language_id=language_id)
         return qs
 
 
 class AdminShowDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAdminUser]
-    queryset = Show.objects.all().select_related('category', 'author')
+    queryset = Show.objects.all().select_related('category', 'author', 'language')
     serializer_class = ShowSerializer
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
@@ -244,21 +267,24 @@ class AdminShowDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class AdminEpisodeListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAdminUser]
-    queryset = Episode.objects.filter(is_deleted=False).select_related('show').order_by('show', 'sequence_number')
+    queryset = Episode.objects.filter(is_deleted=False).select_related('show', 'language').order_by('show', 'sequence_number')
     serializer_class = EpisodeSerializer
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
     def get_queryset(self):
         qs = super().get_queryset()
         show_id = self.request.query_params.get('show', '')
+        language_id = self.request.query_params.get('language')
         if show_id:
             qs = qs.filter(show_id=show_id)
+        if language_id:
+            qs = qs.filter(language_id=language_id)
         return qs
 
 
 class AdminEpisodeDetailView(generics.RetrieveUpdateDestroyAPIView):
     permission_classes = [permissions.IsAdminUser]
-    queryset = Episode.objects.all().select_related('show')
+    queryset = Episode.objects.all().select_related('show', 'language')
     serializer_class = EpisodeDetailSerializer
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
