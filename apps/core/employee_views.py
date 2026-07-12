@@ -3,7 +3,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status, permissions, serializers
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.tokens import AccessToken, RefreshToken
 
 from .models import EmployeeUser
 
@@ -35,13 +35,18 @@ class EmployeeLoginView(APIView):
         if not emp.verify_password(password):
             return Response({"error": "Invalid credentials"}, status=401)
 
+        access = AccessToken()
+        access['employee_id'] = emp.id
+        access['phone_number'] = emp.phone_number
+        access['is_employee'] = True
+
         refresh = RefreshToken()
         refresh['employee_id'] = emp.id
         refresh['phone_number'] = emp.phone_number
         refresh['is_employee'] = True
 
         return Response({
-            'access': str(refresh.access_token),
+            'access': str(access),
             'refresh': str(refresh),
             'employee': {
                 'id': emp.id,
