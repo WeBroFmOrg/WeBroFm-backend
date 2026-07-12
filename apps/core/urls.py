@@ -17,6 +17,17 @@ from .admin_views import (
     AdminR2ExplorerView, AdminR2UploadView, AdminR2DeleteView,
     AdminLikesListView, AdminFavoritesListView,
 )
+from .bin_views import (
+    BinShowListView, BinShowDetailView,
+    BinShowRestoreView, BinShowRestoreEpisodesView, BinShowPermanentDeleteView,
+    BinEpisodeListView, BinEpisodeRestoreView, BinEpisodePermanentDeleteView,
+    BinShowBulkRestoreView, BinShowBulkDeleteView,
+    BinEpisodeBulkRestoreView, BinEpisodeBulkDeleteView,
+)
+from .employee_views import (
+    EmployeeListCreateView, EmployeeDetailView, EmployeeToggleView,
+    AvailablePermissionsView,
+)
 
 urlpatterns = [
     # Auth
@@ -84,4 +95,24 @@ urlpatterns = [
     # Content data (read-only admin views)
     path('admin/likes/', AdminLikesListView.as_view(), name='admin-likes-list'),
     path('admin/favorites/', AdminFavoritesListView.as_view(), name='admin-favorites-list'),
+
+    # ── Recycle Bin ──
+    path('admin/bin/shows/', BinShowListView.as_view(), name='bin-show-list'),
+    path('admin/bin/shows/<int:pk>/', BinShowDetailView.as_view(), name='bin-show-detail'),
+    path('admin/bin/shows/<int:pk>/restore/', BinShowRestoreView.as_view(), name='bin-show-restore'),
+    path('admin/bin/shows/<int:pk>/restore-episodes/', BinShowRestoreEpisodesView.as_view(), name='bin-show-restore-episodes'),
+    path('admin/bin/shows/<int:pk>/permanent/', BinShowPermanentDeleteView.as_view(), name='bin-show-permanent-delete'),
+    path('admin/bin/shows/bulk-restore/', BinShowBulkRestoreView.as_view(), name='bin-show-bulk-restore'),
+    path('admin/bin/shows/bulk-delete/', BinShowBulkDeleteView.as_view(), name='bin-show-bulk-delete'),
+    path('admin/bin/episodes/', BinEpisodeListView.as_view(), name='bin-episode-list'),
+    path('admin/bin/episodes/<int:pk>/restore/', BinEpisodeRestoreView.as_view(), name='bin-episode-restore'),
+    path('admin/bin/episodes/<int:pk>/permanent/', BinEpisodePermanentDeleteView.as_view(), name='bin-episode-permanent-delete'),
+    path('admin/bin/episodes/bulk-restore/', BinEpisodeBulkRestoreView.as_view(), name='bin-episode-bulk-restore'),
+    path('admin/bin/episodes/bulk-delete/', BinEpisodeBulkDeleteView.as_view(), name='bin-episode-bulk-delete'),
+
+    # ── Employee Management (RBAC) ──
+    path('admin/employees/', EmployeeListCreateView.as_view(), name='employee-list'),
+    path('admin/employees/<int:pk>/', EmployeeDetailView.as_view(), name='employee-detail'),
+    path('admin/employees/<int:pk>/toggle/', EmployeeToggleView.as_view(), name='employee-toggle'),
+    path('admin/employees/permissions-list/', AvailablePermissionsView.as_view(), name='employee-permissions-list'),
 ]

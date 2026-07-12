@@ -209,7 +209,7 @@ class AdminAuthorDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class AdminShowListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAdminUser]
-    queryset = Show.objects.all().select_related('category', 'author').order_by('-created_at')
+    queryset = Show.objects.filter(is_deleted=False).select_related('category', 'author').order_by('-created_at')
     serializer_class = ShowSerializer
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
@@ -230,6 +230,13 @@ class AdminShowDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = ShowSerializer
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
+    def perform_destroy(self, instance):
+        from django.utils import timezone
+        instance.is_deleted = True
+        instance.deleted_at = timezone.now()
+        instance.save()
+        instance.episodes.all().update(is_deleted=True, deleted_at=timezone.now())
+
 
 # ──────────────────────────────────────────────
 # EPISODES - Full CRUD
@@ -237,13 +244,13 @@ class AdminShowDetailView(generics.RetrieveUpdateDestroyAPIView):
 
 class AdminEpisodeListCreateView(generics.ListCreateAPIView):
     permission_classes = [permissions.IsAdminUser]
-    queryset = Episode.objects.all().select_related('show').order_by('show', 'sequence_number')
+    queryset = Episode.objects.filter(is_deleted=False).select_related('show').order_by('show', 'sequence_number')
     serializer_class = EpisodeSerializer
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
 
     def get_queryset(self):
         qs = super().get_queryset()
-        show_id = self.request.query_params.get('show')
+        show_id = self.request.query_params.get('show', '')
         if show_id:
             qs = qs.filter(show_id=show_id)
         return qs
@@ -254,6 +261,12 @@ class AdminEpisodeDetailView(generics.RetrieveUpdateDestroyAPIView):
     queryset = Episode.objects.all().select_related('show')
     serializer_class = EpisodeDetailSerializer
     parser_classes = [parsers.MultiPartParser, parsers.FormParser, parsers.JSONParser]
+
+    def perform_destroy(self, instance):
+        from django.utils import timezone
+        instance.is_deleted = True
+        instance.deleted_at = timezone.now()
+        instance.save()
 
 
 class AdminEpisodePlayView(APIView):

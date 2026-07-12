@@ -37,6 +37,8 @@ class Show(models.Model):
     age_rating = models.CharField(max_length=5, choices=AGE_RATINGS, default='U')
     is_featured = models.BooleanField(default=False)
     is_trending = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -50,6 +52,8 @@ class Episode(models.Model):
     duration_seconds = models.PositiveIntegerField(default=0)
     sequence_number = models.PositiveIntegerField(default=1)
     hls_playlist_key = models.CharField(max_length=512, blank=True, help_text="Path to .m3u8 file in R2")
+    is_deleted = models.BooleanField(default=False)
+    deleted_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

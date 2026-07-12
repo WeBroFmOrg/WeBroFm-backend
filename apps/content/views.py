@@ -28,7 +28,7 @@ class PreloadView(APIView):
         except Exception:
             pass
 
-        shows = Show.objects.all().select_related('category')
+        shows = Show.objects.filter(is_deleted=False).select_related('category')
 
         show_ids = [s.id for s in shows]
         episodes = Episode.objects.filter(show_id__in=show_ids).order_by('show', 'sequence_number')
@@ -87,7 +87,7 @@ class WeeklyTrendingView(APIView):
         )
 
         show_ids = [item['episode__show'] for item in hits_per_show]
-        shows = Show.objects.filter(id__in=show_ids).select_related('category', 'author')
+        shows = Show.objects.filter(id__in=show_ids, is_deleted=False).select_related('category', 'author')
         show_dict = {s.id: s for s in shows}
 
         result = []
@@ -120,9 +120,9 @@ class HomeView(APIView):
             return Response(cached_data)
 
         categories = Category.objects.filter(is_active=True)
-        featured_shows = Show.objects.filter(is_featured=True).select_related('category', 'author')[:5]
-        trending_shows = Show.objects.filter(is_trending=True).select_related('category', 'author')[:10]
-        recent_shows = Show.objects.order_by('-created_at').select_related('category', 'author')[:10]
+        featured_shows = Show.objects.filter(is_featured=True, is_deleted=False).select_related('category', 'author')[:5]
+        trending_shows = Show.objects.filter(is_trending=True, is_deleted=False).select_related('category', 'author')[:10]
+        recent_shows = Show.objects.filter(is_deleted=False).order_by('-created_at').select_related('category', 'author')[:10]
 
         data = {
             "featured": ShowSerializer(featured_shows, many=True).data,
@@ -138,10 +138,10 @@ class HomeView(APIView):
 class ShowEpisodesView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = EpisodeSerializer
-
     def get_queryset(self):
         show_id = self.kwargs['show_id']
-        return Episode.objects.filter(show_id=show_id).select_related('show')
+        return Episode.objects.filter(show_id=show_id, is_deleted=False).select_related('show')
+
 
 
 class EpisodePlayView(APIView):

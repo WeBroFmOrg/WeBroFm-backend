@@ -43,6 +43,12 @@ class CustomUser(AbstractBaseUser, PermissionsMixin):
     date_joined = models.DateTimeField(auto_now_add=True)
     
     # Profile Completion Fields
+    gender = models.CharField(max_length=20, blank=True, choices=[
+        ('male', 'Male'),
+        ('female', 'Female'),
+        ('other', 'Other'),
+        ('prefer_not_to_say', 'Prefer Not to Say'),
+    ], default='prefer_not_to_say')
     date_of_birth = models.DateField(blank=True, null=True)
     profile_picture = models.ImageField(upload_to='users/profiles/', blank=True, null=True)
     interests = models.ManyToManyField('content.Category', blank=True, related_name='interested_users')

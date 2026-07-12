@@ -13,5 +13,5 @@ class OTPVerifySerializer(serializers.Serializer):
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ('id', 'phone_number', 'email', 'full_name', 'date_of_birth', 'profile_picture', 'interests', 'date_joined')
+        fields = ('id', 'phone_number', 'email', 'full_name', 'gender', 'date_of_birth', 'profile_picture', 'interests', 'date_joined')
         read_only_fields = ('id', 'phone_number', 'date_joined')
