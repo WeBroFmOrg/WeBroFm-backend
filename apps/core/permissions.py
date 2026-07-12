@@ -1,12 +1,11 @@
 from rest_framework.permissions import BasePermission
-from .models import Employee
 
 
-class EmployeePermission(BasePermission):
-    """Check employee has access to a specific resource+action.
+class HasEmployeePermission(BasePermission):
+    """Check employee JWT has access to a specific resource+action.
     
-    Usage: EmployeePermission(resource='shows', action='delete')
-    For superuser, always returns True.
+    Expects request.auth to contain {'is_employee': True, 'employee_id': ...}.
+    Usage: HasEmployeePermission(resource='shows', action='delete')
     """
 
     def __init__(self, resource=None, action=None):
@@ -14,17 +13,19 @@ class EmployeePermission(BasePermission):
         self.action = action
 
     def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
+        if not request.auth:
             return False
-        if request.user.is_superuser:
-            return True
-        if not self.resource or not self.action:
-            return request.user.is_staff
+        if not request.auth.get('is_employee'):
+            return False
+        from .models import EmployeeUser
         try:
-            employee = request.user.employee_profile
-            return employee.has_permission(self.resource, self.action)
-        except Employee.DoesNotExist:
+            emp = EmployeeUser.objects.get(
+                pk=request.auth['employee_id'],
+                is_active=True,
+            )
+        except (EmployeeUser.DoesNotExist, KeyError):
             return False
+        return emp.has_permission(self.resource, self.action)
 
     def __call__(self):
         return self

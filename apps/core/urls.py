@@ -25,7 +25,7 @@ from .bin_views import (
     BinEpisodeBulkRestoreView, BinEpisodeBulkDeleteView,
 )
 from .employee_views import (
-    EmployeeListCreateView, EmployeeDetailView, EmployeeToggleView,
+    EmployeeLoginView, EmployeeListCreateView, EmployeeDetailView, EmployeeToggleView,
     AvailablePermissionsView,
 )
 
@@ -111,6 +111,7 @@ urlpatterns = [
     path('admin/bin/episodes/bulk-delete/', BinEpisodeBulkDeleteView.as_view(), name='bin-episode-bulk-delete'),
 
     # ── Employee Management (RBAC) ──
+    path('admin/employee-login/', EmployeeLoginView.as_view(), name='employee-login'),
     path('admin/employees/', EmployeeListCreateView.as_view(), name='employee-list'),
     path('admin/employees/<int:pk>/', EmployeeDetailView.as_view(), name='employee-detail'),
     path('admin/employees/<int:pk>/toggle/', EmployeeToggleView.as_view(), name='employee-toggle'),
