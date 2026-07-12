@@ -37,7 +37,7 @@ class ShowSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'category': {'write_only': True},
             'author': {'write_only': True},
-            'language': {'write_only': True, 'required': False},
+            'language': {'required': False},
             'thumbnail': {'allow_null': True},
         }
 
