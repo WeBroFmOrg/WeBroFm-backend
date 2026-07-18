@@ -47,9 +47,15 @@ class SendOTPView(APIView):
         result = sms_service.send_otp(formatted_phone, otp_code)
 
         if "error" in result:
-            print(f"MSG91 error: {result['error']}")
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"MSG91 send failed for {phone_number}: {result}")
+            return Response({
+                "error": "Failed to send OTP. Please try again later.",
+                "detail": result.get("error")
+            }, status=status.HTTP_502_BAD_GATEWAY)
 
-        return Response({"message": "OTP sent successfully"}, status=status.HTTP_200_OK)
+        return Response({"message": "OTP sent successfully", "request_id": result.get("request_id")}, status=status.HTTP_200_OK)
 
 
 class VerifyOTPView(APIView):

@@ -1,0 +1,138 @@
+**Admin Panel UI — Language Management Section**
+
+## 1. New Sidebar Menu Item
+Sidebar me "Languages" ka naya item add karo. Icons ke saath differentiation:
+- Dashboard
+- Shows
+- Episodes
+- Categories
+- **Languages** ← new (between Categories and Authors)
+- Authors
+- Teasers
+- Users
+- Comments
+- ...
+- Recycle Bin
+- Storage (R2)
+- Employees
+
+## 2. API Endpoints for Languages
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/admin/languages/` | List all languages |
+| POST | `/api/admin/languages/` | Create new language |
+| GET | `/api/admin/languages/{id}/` | Get language detail |
+| PATCH | `/api/admin/languages/{id}/` | Update language |
+| DELETE | `/api/admin/languages/{id}/` | Delete language |
+
+**Language object structure:**
+```json
+{
+  "id": 1,
+  "name": "English",
+  "code": "en",
+  "icon": "https://...",  // ImageField, optional
+  "is_active": true
+}
+```
+
+**POST/PATCH body:**
+```json
+{
+  "name": "English",
+  "code": "en",
+  "icon": <file>,      // optional image upload
+  "is_active": true
+}
+```
+
+## 3. Languages Page — Layout
+
+### Tab: All Languages (default)
+Table with columns:
+| # | Name | Code | Icon | Status | Actions |
+|---|------|------|------|--------|---------|
+
+- **Icon**: small preview image (32x32), fallback to language code text badge if no icon
+- **Status**: green chip "Active" or gray chip "Inactive"
+- **Actions**: ✏️ Edit | 🗑️ Delete
+
+### Tab: Create Language
+Form fields:
+- **Name** (required, text) — e.g. "English", "Hindi", "GenZ"
+- **Code** (required, text) — short code like `en`, `hi`, `genz`, `mr`, `gu`, `ta`, `te`, `bn`
+- **Icon** (optional, image upload) — small flag/icon for the language
+- **Active** (toggle switch, default ON)
+
+Form submit → POST `/api/admin/languages/` (multipart/form-data for icon upload)
+
+### Edit Language (modal or drawer)
+Same form as create but pre-filled. PATCH `/api/admin/languages/{id}/`.
+
+### Delete Language
+Confirmation dialog → DELETE `/api/admin/languages/{id}/`
+
+## 4. Show Create/Edit Form — Add Language Field
+
+Existing Show create/edit form me **Category** ke baad ek naya dropdown add karo:
+
+- **Language** (dropdown, optional) — populated from GET `/api/admin/languages/`
+- In Show list table, add "Language" column showing language name
+- Show serializer response includes: `language`, `language_name`, `language_code`
+
+POST/PATCH body for Show now accepts optional `language` field (integer ID).
+
+## 5. Episode Create/Edit Form — Add Language Field
+
+Episode create/edit form me **Language** dropdown add karo (optional):
+
+- Populated from GET `/api/admin/languages/`
+- Episode list table me "Language" column
+- Episode serializer response includes: `language`, `language_name`, `language_code`
+
+POST/PATCH body for Episode now accepts optional `language` field (integer ID).
+
+## 6. Admin Panel — Language Filter on Show/Episode Lists
+
+Show list page me existing filters me **Language** dropdown add karo:
+```
+[Search...] [Category ▼] [Language ▼] [Apply]
+```
+- Language dropdown populated from `/api/admin/languages/`
+- On select, adds `?language=1` query param to `/api/admin/shows/`
+
+Episode list page me bhi same filter:
+```
+[Show ▼] [Language ▼]
+```
+- Adds `?language=1` to `/api/admin/episodes/`
+
+## 7. Dashboard Stats Update
+Dashboard stats card me "Languages" count dikhega (already returning from backend):
+```json
+"summary": {
+  "users": 75,
+  "shows": 10,
+  "episodes": 45,
+  "languages": 3,    // ← new
+  ...
+}
+```
+
+## 8. Default Seed Data
+Admin panel pe Languages page kholne par ye 3 languages pehle se dikhengi (already seeded on server):
+- English (`en`)
+- Hindi (`hi`)
+- GenZ (`genz`)
+
+Admin aur add kar sakta hai like Marathi (`mr`), Gujarati (`gu`), Tamil (`ta`), etc.
+
+---
+
+## Implementation Notes
+- Dark theme, shadcn/ui components as existing pages
+- Icon upload uses multipart/form-data with image preview
+- Language dropdowns in Show/Episode forms: fetch languages list on mount, cache if needed
+- Language code should be lowercase, 2-10 chars, no spaces
+- Same pattern as Categories — Categories ke jaisa hi UI pattern follow karo

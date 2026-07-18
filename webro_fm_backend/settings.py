@@ -267,5 +267,10 @@ LOGGING = {
             'handlers': ['file'],
             'level': 'WARNING',
         },
+        'services.sms_service': {
+            'handlers': ['file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
     },
 }
